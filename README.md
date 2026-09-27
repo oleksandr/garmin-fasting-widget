@@ -1,81 +1,102 @@
-# Garmin Instinct 3 AMOLED Fasting Widget
+# Garmin Fasting Widget
 
-An intermittent fasting companion widget built specifically for the **Garmin Instinct 3 AMOLED (50mm)** using Monkey C and the official Garmin Connect IQ SDK.
+An intermittent fasting tracker widget built in Monkey C for the **Garmin Instinct 3 AMOLED (50mm)**.
 
-Designed for flexible schedules (e.g. 16/8), this app runs as an interactive **Glance Widget**:
-* **Zero Idle Battery Drain**: Stays completely unloaded while on your standard watch face.
-* **Instant Glance Access**: One press of the `DOWN` button shows fasting status & progress bar in your widget list.
-* **Physical 5-Button Controls**: Optimized for button navigation (no touch needed). Quick-shift fasting windows (+/- 15 mins or +/- 1 hour) anytime.
-* **Wrist Alerts**: Schedules background temporal wake-ups when fasting or eating windows finish.
-* **Offline-First Rolling Storage**: Retains the last 30 completed fasts directly in persistent watch memory.
-* **Local Network Sync**: Pushes history to your private LAN API endpoint via Bluetooth through Garmin Connect Mobile.
+<p align="center">
+  <img src="docs/assets/preview.png" width="320" alt="Garmin Fasting Widget UI Preview">
+</p>
 
----
+## Highlights
 
-## Repository Structure
-
-```
-garmin-fasting-widget/
-├── manifest.xml                  # App manifest & permissions
-├── monkey.jungle                 # Build configuration
-├── developer_key.der             # 4096-bit RSA build signing key
-├── docs/                         # Detailed technical documentation
-│   ├── ARCHITECTURE.md           # FSM state machine, lifecycle, storage schema
-│   ├── UI_SPECIFICATION.md       # 390x390 AMOLED layout, colors, button mapping
-│   ├── LOCAL_API_SPEC.md         # Local API schema, SSL & split-DNS guide
-│   └── DEVELOPMENT_GUIDE.md      # Build, MTP sideload, and troubleshooting
-├── resources/                    # Drawables, strings, and settings
-│   ├── drawables/                # 40x40 launcher icon & drawables.xml
-│   ├── settings/                 # Configurable API URL, token, and hours
-│   └── strings/                  # UI and menu localization strings
-├── scripts/
-│   ├── build.sh                  # One-click build script
-│   ├── install.sh                # 1-click Linux MTP sideload script
-│   └── sample_local_server.py    # Local FastAPI test sync receiver
-└── source/                       # Monkey C source code
-    ├── FastingApp.mc             # Application lifecycle & background registration
-    ├── FastingBackground.mc      # Temporal event wake-up delegate
-    ├── FastingGlanceView.mc      # Glance loop view
-    ├── FastingMainView.mc        # 390x390 circular AMOLED interface
-    ├── FastingMenuDelegate.mc    # Physical button handler & action menus
-    ├── FastingStorage.mc         # Persistent FIFO storage (last 30 fasts)
-    └── FastingSync.mc            # Communications HTTP sync client
-```
+- **AMOLED-Optimized (416 × 416)**: Pure black background (`#000000`) with zero idle battery impact.
+- **Glance View**: Shows active state, elapsed time, and progress bar in the widget loop without opening the app.
+- **Physical Button Controls**: 100% button-driven navigation designed for the Instinct hardware (no touch needed).
+- **On-Wrist Time Adjustments**: Quick-shift windows by ±15 minutes using `UP` / `DOWN`, or fine-tune via the menu.
+- **Offline Storage**: Keeps a rolling on-device history of the last 30 completed fasts.
+- **Private LAN Sync**: Automatically pushes completed fasts to a self-hosted HTTP API on your home network.
 
 ---
 
-## Getting Started
+## Controls
 
-### 1. Build the Widget
+| Button | Action |
+| :--- | :--- |
+| **GPS / START** | Open Action Menu (Start/End Fast, Shift Time, Sync Now, History, Reset) |
+| **UP** | Shift Fasting Window (+15 min) |
+| **DOWN** | Shift Fasting Window (-15 min) |
+| **BACK / SET** | Return to Watch Face / Glance Loop |
+
+---
+
+## Requirements
+
+- **Garmin Connect IQ SDK**: 9.2.0+
+- **Device Profile**: `instinct3amoled50mm`
+- **Java**: OpenJDK 17+
+- **Developer Key**: 4096-bit RSA signing key (`developer_key.der`)
+
+---
+
+## Build & Sideload
+
+### 1. Build PRG Binary
 ```bash
-bash scripts/build.sh
+./scripts/build.sh
 ```
-This produces `bin/FastingWidget.prg` (~20 KB).
+Compiles `bin/FastingWidget.prg` using Connect IQ SDK `monkeyc`.
 
-### 2. Sideload to Watch (1-Click USB Sideload)
-Connect your Instinct 3 AMOLED with its USB cable and run:
+### 2. Sideload to Watch (Linux MTP)
+Connect your Instinct 3 AMOLED via USB and run:
 ```bash
-bash scripts/install.sh
+./scripts/install.sh
 ```
-This automatically detects the watch over Linux MTP (`Vendor 0x091e`, `Product 0x51eb`), mounts it, copies `Fasting.prg` to `GARMIN/Apps/`, and safely unmounts it.
+The script detects the watch via MTP (`091e:51eb`), copies `Fasting.prg` to `GARMIN/Apps/`, and unmounts cleanly.
 
-### 3. Activate on Watch
-1. Disconnect the USB cable.
-2. From the watch face, press **`DOWN`** to browse through your **Glances**.
-3. Look for **Fasting**. *(If not present, scroll to the bottom -> **Edit** -> **+ Add** -> **Fasting**)*.
-4. Press **`GPS / ENTER`** on Fasting to launch the full 390 × 390 AMOLED screen.
+### 3. Interactive Web Preview
+To test UI layouts locally without deploying to the physical device:
+```bash
+./scripts/preview.sh
+```
 
 ---
 
-## Testing Local Network Sync
+## Local Network Sync
 
-To test the sync functionality with your computer acting as the local server:
-1. Start the sample server:
-   ```bash
-   python3 scripts/sample_local_server.py
-   ```
-2. In the Garmin Connect app on your smartphone, open **App Settings** for the Fasting widget.
-3. Set **Local API Endpoint** to your server's HTTPS endpoint.
-4. From the watch widget, press `GPS / ENTER` -> select **Sync Now**.
+The widget syncs completed fasting sessions to a custom self-hosted endpoint configured in Garmin Connect Mobile app settings:
 
-For detailed troubleshooting, architecture notes, and SSL certificates guides, see [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md) and [`docs/LOCAL_API_SPEC.md`](docs/LOCAL_API_SPEC.md).
+- **Method**: `POST`
+- **Format**: JSON
+- **Payload Example**:
+  ```json
+  {
+    "device": "instinct3amoled50mm",
+    "token": "your-auth-token",
+    "records": [
+      {
+        "id": 1727434800,
+        "start": 1727434800,
+        "end": 1727492400,
+        "target": 16,
+        "duration": 16.0,
+        "state": "COMPLETED"
+      }
+    ]
+  }
+  ```
+
+A reference receiver server is provided in [`scripts/sample_local_server.py`](scripts/sample_local_server.py).
+
+---
+
+## Documentation
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): FSM lifecycle, storage schema, and background alerts.
+- [`docs/UI_SPECIFICATION.md`](docs/UI_SPECIFICATION.md): Typography, color palette, and 416 × 416 circular layout.
+- [`docs/LOCAL_API_SPEC.md`](docs/LOCAL_API_SPEC.md): Home LAN API specification and SSL setup.
+- [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md): Detailed toolchain setup, device profile installation, and debugging.
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 Oleksandr

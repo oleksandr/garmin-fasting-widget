@@ -1,14 +1,14 @@
-# UI Specification: Instinct 3 AMOLED 50mm (390x390)
+# UI Specification: Instinct 3 AMOLED 50mm (416 × 416)
 
 ## 1. Display & Hardware Properties
 
-* **Resolution**: 390 × 390 pixels (Full Circular display).
+* **Resolution**: 416 × 416 pixels (Full Circular display, center `cx=208, cy=208`).
 * **Display Technology**: AMOLED (High-contrast, self-lit pixels).
 * **Color Depth**: 24-bit / 65K color palette.
 * **Input**: 5 physical buttons (NO touchscreen).
   * **Top Right (`GPS / ENTER`)**: Confirm / Select / Open Actions Menu.
   * **Bottom Right (`SET / BACK`)**: Back / Dismiss / Exit.
-  * **Middle Left (`UP / MENU`)**: Quick Shift Window (+15 min) or Long Press for Settings.
+  * **Middle Left (`UP / MENU`)**: Quick Shift Window (+15 min).
   * **Bottom Left (`DOWN`)**: Quick Shift Window (-15 min).
   * **Top Left (`LIGHT`)**: Standard system backlight/power.
 
@@ -22,7 +22,7 @@ To maximize battery life on the AMOLED panel, the background must always be **pu
 | :--- | :--- | :--- |
 | `COLOR_BG` | `#000000` | True Black (0 power draw) |
 | `COLOR_FASTING` | `#00D2FF` | Cool Cyan: Active Fasting phase |
-| `COLOR_GOAL` | `#30D158` | Vibrant Emerald/Gold: Goal Achieved (>16h) |
+| `COLOR_GOAL` | `#30D158` | Vibrant Emerald: Goal Achieved (>16h) |
 | `COLOR_EATING` | `#FF9F0A` | Warm Amber: Active Eating Window |
 | `COLOR_TEXT_MUTED` | `#8E8E93` | Neutral Gray: Sub-labels & units |
 | `COLOR_TEXT_BRIGHT` | `#FFFFFF` | Crisp White: Primary timer digits |
@@ -32,51 +32,51 @@ To maximize battery life on the AMOLED panel, the background must always be **pu
 ## 3. Screen Layouts
 
 ### Layout A: Glance View (UP/DOWN Widget Loop)
-When scrolling through your Garmin widget list, this view renders within the glance slot:
+When scrolling through the widget list, this view renders within the glance slot:
 
 ```
 ┌──────────────────────────────────────────────┐
-│ [FAST] 14h 22m / 16h        (1h 38m left)    │
-│ [████████████████████░░░░░] 89%              │
+│ FASTING: 14h 22m                             │
+│ 1h 38m left • Goal 16h                       │
+│ [████████████████████░░░░░]                  │
 └──────────────────────────────────────────────┘
 ```
-* **Text Line 1**: Current state tag `[FAST]` or `[EAT]`, elapsed time, target.
-* **Text Line 2 / Bar**: Progress bar spanning width, showing percentage completion.
+* **Text Line 1**: Active state and elapsed time.
+* **Text Line 2**: Remaining time and goal duration.
+* **Text Line 3**: Horizontal progress bar.
 
-### Layout B: Full Main View (390 × 390 Round AMOLED)
+### Layout B: Main View (416 × 416 Round AMOLED)
 Accessed by pressing `ENTER` on the Glance:
 
 ```
-                   ▲ [UP: +15m]
-                 .  - - -  .
-             . '             ' .
-           /    [FASTING 16/8]   \
-          /                       \
-         |     Elapsed: 14h 22m    |
-         |                         |
-         |      01:37:45           |  ◄ Big Timer: Time Remaining
-         |       REMAINING         |
-         |                         |
-         |     Target: 12:30 PM    |
-          \                       /
-           \   [Press GPS: MENU] /
-             ' .             . '
-                 ' - - - - '
-                   ▼ [DOWN: -15m]
+                     .  - - -  .
+                 . '     ▲       ' .
+               /    [FASTING 16/8]   \
+              /                       \
+             |     Elapsed: 14h 22m    |
+             |                         |
+             |        01:37:45         |  ◄ Hero Timer
+             |     TIME REMAINING      |
+             |                         |
+             |     Target: 8:00 PM     |
+              \                       /
+               \         ▼           /
+                 ' .             . '
+                     ' - - - - '
 ```
 
-* **Outer Ring (`dc.drawArc`)**:
-  * Outer Radius: `185px`, Stroke: `10px`.
-  * Arc starts at 12 o'clock (`90°`) and advances clockwise up to `360°` based on percentage completed.
-  * Cyan during fasting; shifts to Emerald Green once `100%` is passed.
-* **Header**: Small font, indicates state (`FASTING 16:8` or `EATING 8h`).
-* **Center**: Large numeric font displaying remaining or elapsed time.
-* **Footer**: Action hint (`GPS: ACTIONS`).
+* **Outer Track & Progress Arc**:
+  * Outer Radius: `194px`, Stroke: `10px`.
+  * Starts at 12 o'clock (`90°`) and advances clockwise up to `360°`.
+  * Cyan during fasting; shifts to Emerald Green once goal is reached.
+* **Header**: State title (`FASTING 16/8`, `GOAL REACHED!`, or `EATING WINDOW`).
+* **Elapsed Info**: Elapsed duration and current goal.
+* **Hero Timer**: Large numeric font (`FONT_NUMBER_MEDIUM`) with `TIME REMAINING` label underneath.
+* **Footer**: Target completion clock time (`Target: 8:00 PM`) or temporary feedback banner (`+15 min added`).
 
 ### Layout C: Action Menu (Triggered by `ENTER`)
-Pressing `ENTER` opens a native Garmin menu:
-1. **End Fast & Start Eating**: Logs current fast, switches state to `EATING`, schedules eating window alarm.
-2. **Shift Start Time**: Sub-menu to add/subtract 15m or 1h (if dinner was earlier/later than logged).
-3. **Sync Now**: Attempts immediate HTTP push of unsynced records to local home API.
-4. **History**: View summary of last 7 fasts and average duration.
+1. **End Fast & Start Eating**: Logs current fast, switches state to `EATING`.
+2. **Shift Start Time**: Add/subtract 15m or 1h.
+3. **Sync Now**: Immediate HTTP push of unsynced records to local home API.
+4. **History**: Summary of last 30 fasts.
 5. **Reset / Cancel**: Cancel active session.

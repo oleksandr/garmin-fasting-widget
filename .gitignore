@@ -1,8 +1,21 @@
+# Connect IQ build outputs
 bin/
 *.prg
 *.iq
+
+# Private developer signing keys
 developer_key.pem
 developer_key.der
-.Garmin/
+
+# IDE & Editor artifacts
 .idea/
 .vscode/
+*.swp
+*~
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Garmin SDK caches
+.Garmin/

@@ -88,5 +88,5 @@ A rolling FIFO array `fastingHistory` capped at **30 records**:
 | **Glance Loop** | `AppBase.getGlanceView()` | Compact view in the UP/DOWN widget list showing fast progress without opening the app. |
 | **Vibration** | `Toybox.Attention.vibrate()` | Used inside the widget when pressing buttons or opening confirmation dialogs. |
 | **Background Alerts** | `Background.requestApplicationWake()` | Schedules a temporal event at `start + target`. When reached, the OS wakes and presents a system haptic prompt to the user. |
-| **Display Optimization** | 390 × 390 AMOLED | Background is set to pure black (`#000000`) so inactive OLED pixels consume 0 power. |
+| **Display Optimization** | 416 × 416 AMOLED | Background is set to pure black (`#000000`) so inactive OLED pixels consume 0 power. |
 | **Button Navigation** | `BehaviorDelegate` | 100% button-driven (Instinct 3 has no touchscreen). |

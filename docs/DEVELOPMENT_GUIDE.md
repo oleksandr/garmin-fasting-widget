@@ -31,7 +31,7 @@ garmin-fasting-widget/
 ├── monkey.jungle                 # Project build config
 ├── docs/                         # Architecture & technical documentation
 │   ├── ARCHITECTURE.md           # FSM state machine, lifecycle, storage schema
-│   ├── UI_SPECIFICATION.md       # 390x390 AMOLED layout, colors, button mapping
+│   ├── UI_SPECIFICATION.md       # 416x416 AMOLED layout, colors, button mapping
 │   ├── LOCAL_API_SPEC.md         # Local API schema, SSL & split-DNS guide
 │   └── DEVELOPMENT_GUIDE.md      # This guide
 ├── resources/                    # Layouts, strings, and settings
@@ -52,8 +52,8 @@ garmin-fasting-widget/
 └── source/                       # Monkey C source code
     ├── FastingApp.mc             # Main Application entrypoint
     ├── FastingBackground.mc      # Temporal background wake service
-    ├── FastingGlanceView.mc      # 390x390 Glance loop view
-    ├── FastingMainView.mc        # Main AMOLED circular UI
+    ├── FastingGlanceView.mc      # Glance loop view
+    ├── FastingMainView.mc        # Main 416x416 AMOLED circular UI
     ├── FastingMenuDelegate.mc    # 5-button interaction delegate
     ├── FastingStorage.mc         # Persistent FIFO storage (last 30 fasts)
     └── FastingSync.mc            # Communications HTTP sync client
