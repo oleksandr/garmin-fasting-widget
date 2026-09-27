@@ -1,0 +1,20 @@
+<strings>
+    <string id="AppName">Fasting</string>
+    <string id="StateIdle">Idle</string>
+    <string id="StateFasting">Fasting</string>
+    <string id="StateGoalReached">Goal Reached!</string>
+    <string id="StateEating">Eating Window</string>
+    
+    <string id="MenuStartFast">Start Fast</string>
+    <string id="MenuEndFast">End Fast &amp; Eat</string>
+    <string id="MenuEndEating">End Eating &amp; Fast</string>
+    <string id="MenuShiftPlus15">+15 min Start</string>
+    <string id="MenuShiftMinus15">-15 min Start</string>
+    <string id="MenuSyncNow">Sync to Local API</string>
+    <string id="MenuHistory">View History</string>
+    <string id="MenuCancel">Cancel / Reset</string>
+
+    <string id="Syncing">Syncing...</string>
+    <string id="SyncSuccess">Sync Complete</string>
+    <string id="SyncFailed">Sync Failed</string>
+</strings>

@@ -1,0 +1,6 @@
+<properties>
+    <property id="apiUrl" type="string">https://fasting.lan.home/api/fasting/sync</property>
+    <property id="apiToken" type="string">your_secret_token_here</property>
+    <property id="targetFastHours" type="number">16</property>
+    <property id="targetEatHours" type="number">8</property>
+</properties>

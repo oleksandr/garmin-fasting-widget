@@ -1,0 +1,8 @@
+bin/
+*.prg
+*.iq
+developer_key.pem
+developer_key.der
+.Garmin/
+.idea/
+.vscode/

@@ -1,0 +1,14 @@
+<settings>
+    <setting propertyKey="@Properties.apiUrl" title="Local API Endpoint">
+        <settingConfig type="alphaNumeric" maxLength="128" />
+    </setting>
+    <setting propertyKey="@Properties.apiToken" title="API Bearer Token">
+        <settingConfig type="alphaNumeric" maxLength="64" />
+    </setting>
+    <setting propertyKey="@Properties.targetFastHours" title="Target Fasting Hours">
+        <settingConfig type="numeric" min="8" max="48" />
+    </setting>
+    <setting propertyKey="@Properties.targetEatHours" title="Target Eating Window Hours">
+        <settingConfig type="numeric" min="1" max="16" />
+    </setting>
+</settings>
