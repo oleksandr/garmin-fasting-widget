@@ -193,49 +193,37 @@
             </div>
 
             <div class="control-group">
-                <label>Vertical Layout Fine-Tuning</label>
+                <label>Vertical Centers (TEXT_JUSTIFY_VCENTER)</label>
                 
                 <div class="slider-row">
-                    <span>Title Y</span>
-                    <span class="val" id="titleYVal">60</span>
+                    <span>Title cy</span>
+                    <span class="val" id="titleYVal">92</span>
                 </div>
-                <input type="range" id="titleY" min="30" max="100" value="60" oninput="updateSliders()">
+                <input type="range" id="titleY" min="50" max="130" value="92" oninput="updateSliders()">
 
                 <div class="slider-row">
-                    <span>Elapsed Info Y</span>
-                    <span class="val" id="elapsedYVal">95</span>
+                    <span>Elapsed Info cy</span>
+                    <span class="val" id="elapsedYVal">128</span>
                 </div>
-                <input type="range" id="elapsedY" min="80" max="130" value="95" oninput="updateSliders()">
+                <input type="range" id="elapsedY" min="90" max="160" value="128" oninput="updateSliders()">
 
                 <div class="slider-row">
-                    <span>Timer Digits Y</span>
-                    <span class="val" id="timerYVal">135</span>
+                    <span>Timer Digits cy</span>
+                    <span class="val" id="timerYVal">202</span>
                 </div>
-                <input type="range" id="timerY" min="110" max="180" value="135" oninput="updateSliders()">
+                <input type="range" id="timerY" min="160" max="230" value="202" oninput="updateSliders()">
 
                 <div class="slider-row">
-                    <span>Timer Label Y</span>
-                    <span class="val" id="timerLabelYVal">215</span>
+                    <span>Timer Subtitle cy</span>
+                    <span class="val" id="timerLabelYVal">262</span>
                 </div>
-                <input type="range" id="timerLabelY" min="190" max="250" value="215" oninput="updateSliders()">
+                <input type="range" id="timerLabelY" min="230" max="290" value="262" oninput="updateSliders()">
 
                 <div class="slider-row">
-                    <span>Target Time / Banner Y</span>
-                    <span class="val" id="targetYVal">255</span>
+                    <span>Target Time / Banner cy</span>
+                    <span class="val" id="targetYVal">315</span>
                 </div>
-                <input type="range" id="targetY" min="230" max="290" value="255" oninput="updateSliders()">
-
-                <div class="slider-row">
-                    <span>Bottom Help Line 1 Y</span>
-                    <span class="val" id="help1YVal">300</span>
-                </div>
-                <input type="range" id="help1Y" min="270" max="340" value="300" oninput="updateSliders()">
-
-                <div class="slider-row">
-                    <span>Bottom Help Line 2 Y</span>
-                    <span class="val" id="help2YVal">325</span>
-                </div>
-                <input type="range" id="help2Y" min="300" max="360" value="325" oninput="updateSliders()">
+                <input type="range" id="targetY" min="280" max="350" value="315" oninput="updateSliders()">
             </div>
 
             <div class="control-group">
@@ -254,13 +242,11 @@ let statusBanner = null;
 let bannerTimer = null;
 
 const cfg = {
-    titleY: 60,
-    elapsedY: 95,
-    timerY: 135,
-    timerLabelY: 215,
-    targetY: 255,
-    help1Y: 300,
-    help2Y: 325
+    titleY: 92,
+    elapsedY: 128,
+    timerY: 202,
+    timerLabelY: 262,
+    targetY: 315
 };
 
 function formatTime(totalSec) {
@@ -293,7 +279,7 @@ function renderGlance() {
         const mLeft = Math.floor((remSec % 3600) / 60);
 
         stateTitle = `FASTING: ${hFasted}h ${mFasted}m`;
-        subText = `${hLeft}h ${mLeft}m left • Goal: ${targetHours}h`;
+        subText = `${hLeft}h ${mLeft}m left • Goal ${targetHours}h`;
         pct = Math.min(1.0, elapsedSec / targetSec);
         barColor = "#00D2FF";
     } else if (state === 2) { // GOAL REACHED
@@ -308,25 +294,27 @@ function renderGlance() {
         barColor = "#30D158";
     } else if (state === 3) { // EATING
         stateTitle = "EATING WINDOW";
-        subText = "6h 30m remaining • Goal: 8h";
+        subText = "6h 30m left • Goal 8h";
         pct = 0.35;
         barColor = "#FF9F0A";
     }
 
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
     // Title
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 18px 'Roboto', sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText(stateTitle, 12, 28);
+    ctx.font = "bold 20px 'Roboto', sans-serif";
+    ctx.fillText(stateTitle, 12, 22);
 
     // Subtitle
     ctx.fillStyle = "#8E8E93";
     ctx.font = "14px 'Roboto', sans-serif";
-    ctx.fillText(subText, 12, 54);
+    ctx.fillText(subText, 12, 52);
 
     // Progress bar
     const barX = 12;
-    const barY = 74;
+    const barY = 78;
     const barW = w - 24;
     const barH = 6;
 
@@ -360,7 +348,8 @@ function renderMainWatch() {
     let timerSub = "PRESS GPS TO START";
     let arcColor = "#00D2FF";
     let progress = 0.0;
-    let elapsedInfo = "Ready to begin 16/8 fast";
+    let elapsedInfo = "Ready to begin fast";
+    let targetInfo = "Target: 12:30 PM";
 
     if (state === 1) { // FASTING
         const targetSec = targetHours * 3600;
@@ -369,6 +358,7 @@ function renderMainWatch() {
         elapsedInfo = `Elapsed: ${Math.floor(elapsedSec/3600)}h ${Math.floor((elapsedSec%3600)/60)}m  •  Goal: ${targetHours}h`;
         timerDigits = formatTime(remSec);
         timerSub = "TIME REMAINING";
+        targetInfo = "Target: 12:30 PM";
         arcColor = "#00D2FF";
         progress = Math.min(1.0, elapsedSec / targetSec);
     } else if (state === 2) { // GOAL REACHED
@@ -378,15 +368,17 @@ function renderMainWatch() {
         elapsedInfo = `Completed ${targetHours}h Goal`;
         timerDigits = formatTime(bonusSec);
         timerSub = "BONUS FASTING TIME";
+        targetInfo = "Goal met at 11:30 AM";
         arcColor = "#30D158";
         progress = 1.0;
     } else if (state === 3) { // EATING
         const eatSec = 8 * 3600;
         const eatElapsed = 1.5 * 3600;
         stateTitle = "EATING WINDOW";
-        elapsedInfo = `Window: 12:00 PM – 8:00 PM`;
+        elapsedInfo = `Window: 8 Hours Total`;
         timerDigits = formatTime(eatSec - eatElapsed);
         timerSub = "WINDOW CLOSES IN";
+        targetInfo = "Closes at 8:00 PM";
         arcColor = "#FF9F0A";
         progress = eatElapsed / eatSec;
     }
@@ -410,48 +402,41 @@ function renderMainWatch() {
         ctx.stroke();
     }
 
-    // 1. Top State Title
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // 1. Top State Title (cy = 55)
     ctx.fillStyle = arcColor;
     ctx.font = "bold 20px 'Roboto', sans-serif";
-    ctx.textAlign = "center";
     ctx.fillText(stateTitle, cx, cfg.titleY);
 
-    // 2. Elapsed Subtitle
+    // 2. Elapsed Subtitle (cy = 88)
     ctx.fillStyle = "#8E8E93";
     ctx.font = "14px 'Roboto', sans-serif";
     ctx.fillText(elapsedInfo, cx, cfg.elapsedY);
 
-    // 3. Center Timer Digits
+    // 3. Center Timer Digits (cy = 158)
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = "500 56px 'Oswald', sans-serif";
+    ctx.font = "500 52px 'Oswald', sans-serif";
     ctx.letterSpacing = "1px";
-    ctx.fillText(timerDigits, cx, cfg.timerY + 45); // Oswald baseline adjustment
+    ctx.fillText(timerDigits, cx, cfg.timerY);
 
-    // 4. Timer Subtitle Label
+    // 4. Timer Subtitle Label (cy = 206)
     ctx.fillStyle = "#8E8E93";
     ctx.font = "bold 13px 'Roboto', sans-serif";
     ctx.letterSpacing = "0.5px";
     ctx.fillText(timerSub, cx, cfg.timerLabelY);
 
-    // 5. Target Time / Banner Message
+    // 5. Target Time / Banner Message (cy = 246)
     if (statusBanner) {
         ctx.fillStyle = "#FFD60A";
         ctx.font = "bold 16px 'Roboto', sans-serif";
         ctx.fillText(statusBanner, cx, cfg.targetY);
     } else {
-        ctx.fillStyle = "#555558";
-        ctx.font = "13px 'Roboto', sans-serif";
-        ctx.fillText("Target: 12:30 PM", cx, cfg.targetY);
+        ctx.fillStyle = "#E5E5EA";
+        ctx.font = "14px 'Roboto', sans-serif";
+        ctx.fillText(targetInfo, cx, cfg.targetY);
     }
-
-    // 6. Bottom Navigation Hints (Split into 2 curved lines to fit circle)
-    ctx.fillStyle = "#636366";
-    ctx.font = "bold 13px 'Roboto', sans-serif";
-    ctx.fillText("GPS: Actions Menu", cx, cfg.help1Y);
-
-    ctx.fillStyle = "#48484a";
-    ctx.font = "12px 'Roboto', sans-serif";
-    ctx.fillText("UP / DN: ±15m Shift", cx, cfg.help2Y);
 }
 
 function updateSliders() {
@@ -460,28 +445,22 @@ function updateSliders() {
     cfg.timerY = parseInt(document.getElementById("timerY").value);
     cfg.timerLabelY = parseInt(document.getElementById("timerLabelY").value);
     cfg.targetY = parseInt(document.getElementById("targetY").value);
-    cfg.help1Y = parseInt(document.getElementById("help1Y").value);
-    cfg.help2Y = parseInt(document.getElementById("help2Y").value);
 
     document.getElementById("titleYVal").innerText = cfg.titleY;
     document.getElementById("elapsedYVal").innerText = cfg.elapsedY;
     document.getElementById("timerYVal").innerText = cfg.timerY;
     document.getElementById("timerLabelYVal").innerText = cfg.timerLabelY;
     document.getElementById("targetYVal").innerText = cfg.targetY;
-    document.getElementById("help1YVal").innerText = cfg.help1Y;
-    document.getElementById("help2YVal").innerText = cfg.help2Y;
 
     renderMainWatch();
 }
 
 function resetSliders() {
-    document.getElementById("titleY").value = 60;
-    document.getElementById("elapsedY").value = 95;
-    document.getElementById("timerY").value = 135;
-    document.getElementById("timerLabelY").value = 215;
-    document.getElementById("targetY").value = 255;
-    document.getElementById("help1Y").value = 300;
-    document.getElementById("help2Y").value = 325;
+    document.getElementById("titleY").value = 92;
+    document.getElementById("elapsedY").value = 128;
+    document.getElementById("timerY").value = 202;
+    document.getElementById("timerLabelY").value = 262;
+    document.getElementById("targetY").value = 315;
     updateSliders();
 }
 
