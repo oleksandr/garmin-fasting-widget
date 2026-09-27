@@ -4,6 +4,7 @@ import Toybox.Time;
 import Toybox.System;
 import Toybox.Lang;
 
+(:glance)
 module FastingStorage {
 
     enum State {

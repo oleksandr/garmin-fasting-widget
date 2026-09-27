@@ -47,7 +47,7 @@ class FastingMainView extends WatchUi.View {
         var h = dc.getHeight();
         var cx = w / 2;
         var cy = h / 2;
-        var radius = 175;
+        var radius = (w / 2) - 14;
 
         // Pure black AMOLED background
         dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
@@ -58,6 +58,7 @@ class FastingMainView extends WatchUi.View {
         var now = Time.now().value();
 
         var stateTitle = "IDLE";
+        var elapsedInfo = "Ready to begin fast";
         var timerDigits = "00:00:00";
         var timerSub = "PRESS GPS TO START";
         var arcColor = 0x00D2FF; // Cyan
@@ -67,16 +68,20 @@ class FastingMainView extends WatchUi.View {
             var targetHours = FastingStorage.getTargetHours();
             var targetSec = targetHours * 3600;
             var elapsedSec = (start > 0 && now >= start) ? (now - start) : 0;
+            var elapsedH = elapsedSec / 3600;
+            var elapsedM = (elapsedSec % 3600) / 60;
 
             if (elapsedSec >= targetSec) {
                 stateTitle = "GOAL REACHED!";
+                elapsedInfo = "Completed " + targetHours + "h Goal";
                 var bonusSec = elapsedSec - targetSec;
                 timerDigits = formatTime(bonusSec);
-                timerSub = "BONUS FASTING";
+                timerSub = "BONUS FASTING TIME";
                 arcColor = 0x30D158; // Emerald
                 progress = 1.0;
             } else {
                 stateTitle = "FASTING " + targetHours + "/" + FastingStorage.getEatingHours();
+                elapsedInfo = "Elapsed: " + elapsedH + "h " + elapsedM + "m  •  Goal: " + targetHours + "h";
                 var remSec = targetSec - elapsedSec;
                 timerDigits = formatTime(remSec);
                 timerSub = "TIME REMAINING";
@@ -84,15 +89,17 @@ class FastingMainView extends WatchUi.View {
                 progress = elapsedSec.toFloat() / targetSec.toFloat();
             }
         } else if (state == FastingStorage.STATE_EATING) {
-            var eatTarget = FastingStorage.getEatingHours() * 3600;
+            var eatTarget = FastingStorage.getEatingHours();
+            var eatTargetSec = eatTarget * 3600;
             var elapsedSec = (start > 0 && now >= start) ? (now - start) : 0;
-            var remSec = (eatTarget > elapsedSec) ? (eatTarget - elapsedSec) : 0;
+            var remSec = (eatTargetSec > elapsedSec) ? (eatTargetSec - elapsedSec) : 0;
 
             stateTitle = "EATING WINDOW";
+            elapsedInfo = "Goal: " + eatTarget + " Hours";
             timerDigits = formatTime(remSec);
             timerSub = "WINDOW CLOSES IN";
             arcColor = 0xFF9F0A; // Amber
-            progress = (eatTarget > 0) ? (elapsedSec.toFloat() / eatTarget.toFloat()) : 0.0;
+            progress = (eatTargetSec > 0) ? (elapsedSec.toFloat() / eatTargetSec.toFloat()) : 0.0;
             if (progress > 1.0) { progress = 1.0; }
         }
 
@@ -101,10 +108,9 @@ class FastingMainView extends WatchUi.View {
         dc.setColor(0x2C2C2E, Graphics.COLOR_TRANSPARENT);
         dc.drawCircle(cx, cy, radius);
 
-        // Draw active arc
+        // Draw active arc (Clockwise from top: 90 deg = 12 o'clock)
         if (progress > 0.0) {
             dc.setColor(arcColor, Graphics.COLOR_TRANSPARENT);
-            // In CIQ, 90 deg = top (12 o'clock). Clockwise decreases angle.
             var startAngle = 90;
             var sweep = (progress * 360.0).toNumber();
             if (sweep > 359) { sweep = 359; }
@@ -112,26 +118,37 @@ class FastingMainView extends WatchUi.View {
             dc.drawArc(cx, cy, radius, Graphics.ARC_CLOCKWISE, startAngle, endAngle);
         }
 
-        // Top State Label
+        // 1. Top State Title (y = 58)
         dc.setColor(arcColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, 65, Graphics.FONT_TINY, stateTitle, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(cx, 58, Graphics.FONT_MEDIUM, stateTitle, Graphics.TEXT_JUSTIFY_CENTER);
 
-        // Center Timer
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, 130, Graphics.FONT_NUMBER_HOT, timerDigits, Graphics.TEXT_JUSTIFY_CENTER);
-
-        // Subtitle below timer
+        // 2. Elapsed / Subtitle (y = 92)
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, 215, Graphics.FONT_XTINY, timerSub, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(cx, 92, Graphics.FONT_XTINY, elapsedInfo, Graphics.TEXT_JUSTIFY_CENTER);
 
-        // Status banner (e.g. "+15m Shifted" or "Synced") or Bottom Action Hint
+        // 3. Center Timer Digits (y = 135)
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 135, Graphics.FONT_NUMBER_MEDIUM, timerDigits, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // 4. Subtitle below timer (y = 212)
+        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 212, Graphics.FONT_XTINY, timerSub, Graphics.TEXT_JUSTIFY_CENTER);
+
+        // 5. Status Banner or Secondary Info (y = 252)
         if (_statusBanner != null) {
             dc.setColor(Graphics.COLOR_YELLOW, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, 285, Graphics.FONT_TINY, _statusBanner, Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(cx, 252, Graphics.FONT_SMALL, _statusBanner, Graphics.TEXT_JUSTIFY_CENTER);
         } else {
-            dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, 290, Graphics.FONT_XTINY, "[GPS: MENU  UP/DN: +/-15m]", Graphics.TEXT_JUSTIFY_CENTER);
+            dc.setColor(0x636366, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, 252, Graphics.FONT_XTINY, "Target Window", Graphics.TEXT_JUSTIFY_CENTER);
         }
+
+        // 6. Bottom Navigation Hints (Split across 2 lines to fit lower circular curve)
+        dc.setColor(0x8E8E93, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 295, Graphics.FONT_XTINY, "GPS: Action Menu", Graphics.TEXT_JUSTIFY_CENTER);
+
+        dc.setColor(0x555558, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 320, Graphics.FONT_XTINY, "UP / DN: ±15m Shift", Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     private function formatTime(totalSec as Number) as String {
