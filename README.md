@@ -23,13 +23,14 @@ garmin-fasting-widget/
 │   ├── ARCHITECTURE.md           # FSM state machine, lifecycle, storage schema
 │   ├── UI_SPECIFICATION.md       # 390x390 AMOLED layout, colors, button mapping
 │   ├── LOCAL_API_SPEC.md         # Local API schema, SSL & split-DNS guide
-│   └── DEVELOPMENT_GUIDE.md      # Build, test, and sideload workflows
+│   └── DEVELOPMENT_GUIDE.md      # Build, MTP sideload, and troubleshooting
 ├── resources/                    # Drawables, strings, and settings
 │   ├── drawables/                # 40x40 launcher icon & drawables.xml
 │   ├── settings/                 # Configurable API URL, token, and hours
 │   └── strings/                  # UI and menu localization strings
 ├── scripts/
 │   ├── build.sh                  # One-click build script
+│   ├── install.sh                # 1-click Linux MTP sideload script
 │   └── sample_local_server.py    # Local FastAPI test sync receiver
 └── source/                       # Monkey C source code
     ├── FastingApp.mc             # Application lifecycle & background registration
@@ -45,28 +46,24 @@ garmin-fasting-widget/
 
 ## Getting Started
 
-### 1. Environment Status
-* **Java 17 (Temurin)**: Installed and active.
-* **Connect IQ SDK 9.2.0**: Downloaded and ready in `~/.Garmin/ConnectIQ/Sdks/`.
-* **Developer RSA Key**: Generated and saved to `developer_key.der`.
-
-### 2. Download Device Definition (Requires Your Garmin Account)
-Garmin requires an authenticated developer login to download device definitions:
-```bash
-connect-iq-sdk-manager login
-connect-iq-sdk-manager device download -d instinct3amoled50mm
-```
-
-### 3. Build the Widget
+### 1. Build the Widget
 ```bash
 bash scripts/build.sh
 ```
-This produces `bin/FastingWidget.prg`.
+This produces `bin/FastingWidget.prg` (~20 KB).
 
-### 4. Sideload to Watch (USB)
-1. Plug your Instinct 3 AMOLED into your computer using the USB charging cable.
-2. Copy `bin/FastingWidget.prg` into the **`GARMIN/APPS/`** folder on the watch storage.
-3. Unplug the watch. The widget will now appear in your glance loop!
+### 2. Sideload to Watch (1-Click USB Sideload)
+Connect your Instinct 3 AMOLED with its USB cable and run:
+```bash
+bash scripts/install.sh
+```
+This automatically detects the watch over Linux MTP (`Vendor 0x091e`, `Product 0x51eb`), mounts it, copies `Fasting.prg` to `GARMIN/Apps/`, and safely unmounts it.
+
+### 3. Activate on Watch
+1. Disconnect the USB cable.
+2. From the watch face, press **`DOWN`** to browse through your **Glances**.
+3. Look for **Fasting**. *(If not present, scroll to the bottom -> **Edit** -> **+ Add** -> **Fasting**)*.
+4. Press **`GPS / ENTER`** on Fasting to launch the full 390 × 390 AMOLED screen.
 
 ---
 
@@ -80,3 +77,5 @@ To test the sync functionality with your computer acting as the local server:
 2. In the Garmin Connect app on your smartphone, open **App Settings** for the Fasting widget.
 3. Set **Local API Endpoint** to your server's HTTPS endpoint.
 4. From the watch widget, press `GPS / ENTER` -> select **Sync Now**.
+
+For detailed troubleshooting, architecture notes, and SSL certificates guides, see [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md) and [`docs/LOCAL_API_SPEC.md`](docs/LOCAL_API_SPEC.md).
