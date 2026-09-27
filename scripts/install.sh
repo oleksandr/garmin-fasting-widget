@@ -12,13 +12,8 @@ fi
 
 echo "=== Sideloading Fasting Widget to Garmin Watch ==="
 
-# 1. Check if Garmin MTP device is connected
-DEVICE_ID=$(gio mount -l -i | grep -B 2 -i "091e 51eb" | grep "activation_root" | head -n 1 | awk -F'=' '{print $2}')
-
-if [ -z "$DEVICE_ID" ]; then
-    # Try looking for any Garmin volume
-    DEVICE_ID=$(gio mount -l -i | grep -B 2 -i "091e" | grep "activation_root" | head -n 1 | awk -F'=' '{print $2}')
-fi
+# 1. Detect Garmin MTP URI from gio mount list
+DEVICE_ID=$(gio mount -l -i | grep -o 'mtp://[a-zA-Z0-9_]*' | head -n 1)
 
 if [ -z "$DEVICE_ID" ]; then
     echo "Error: Garmin Instinct 3 AMOLED not detected over USB."
@@ -26,18 +21,20 @@ if [ -z "$DEVICE_ID" ]; then
     exit 1
 fi
 
-echo "Detected Garmin device: $DEVICE_ID"
+DEVICE_URI="${DEVICE_ID}/"
+echo "Detected Garmin device: $DEVICE_URI"
 
-# 2. Mount MTP volume if needed
-gio mount "$DEVICE_ID" 2>/dev/null || true
+# 2. Mount MTP volume
+gio mount "$DEVICE_URI" 2>/dev/null || true
 
-TARGET_PATH="${DEVICE_ID}Internal Storage/GARMIN/Apps/Fasting.prg"
+# 3. Locate Apps directory
+TARGET_PATH="${DEVICE_URI}Internal Storage/GARMIN/Apps/Fasting.prg"
 
 echo "Copying Fasting.prg to watch..."
-gio copy -f "$PRG" "$TARGET_PATH"
+gio copy "$PRG" "$TARGET_PATH"
 
 echo "Flushing and safely unmounting..."
-gio mount -u "$DEVICE_ID" 2>/dev/null || true
+gio mount -u "$DEVICE_URI" 2>/dev/null || true
 
 echo ""
 echo "SUCCESS! Fasting widget has been installed onto your watch."
