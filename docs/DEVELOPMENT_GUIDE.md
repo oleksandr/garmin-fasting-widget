@@ -48,7 +48,15 @@ garmin-fasting-widget/
 ├── scripts/                      # Build & deployment utilities
 │   ├── build.sh                  # Automated compiler script
 │   ├── install.sh                # 1-click Linux MTP sideload script
-│   └── sample_local_server.py    # Local test sync API server
+│   ├── preview.html              # Interactive browser preview
+│   └── preview.sh                # Local preview launcher
+├── server/                       # Standalone Go sync server (pure net/http + SQLite)
+│   ├── Dockerfile                # Container build specification
+│   ├── go.mod                    # Go module definition
+│   ├── db.go                     # SQLite database driver & schema
+│   ├── handler.go                # HTTP handlers (json/v2)
+│   ├── model.go                  # Data transfer models
+│   └── main.go                   # Server entrypoint & graceful shutdown
 └── source/                       # Monkey C source code
     ├── FastingApp.mc             # Main Application entrypoint
     ├── FastingBackground.mc      # Temporal background wake service

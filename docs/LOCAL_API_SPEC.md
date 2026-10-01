@@ -64,12 +64,38 @@ Because the Garmin watch communicates via Bluetooth Low Energy (BLE) through the
 
 ---
 
-## 4. Sample Local Python API Server
+## 4. Self-Hosted Go Sync Server & SQLite Storage
 
-A lightweight FastAPI server is provided in `scripts/sample_local_server.py`.
+A lightweight, self-hosted sync server is implemented in Go under the `server/` directory:
+- **Zero Third-Party Web Frameworks**: Pure standard library `net/http` with method-aware routing.
+- **Modern JSON**: Uses standard library `encoding/json/v2` for encoding and decoding.
+- **Embedded Database**: Pure-Go SQLite (`modernc.org/sqlite`) requiring no CGO.
 
-To run:
+### Endpoints
+* `POST /api/fasting/sync` / `POST /api/v1/sync`: Upserts fasting sessions into SQLite.
+* `GET /api/fasting/history` / `GET /api/v1/history`: Returns up to `limit` records (default: 30).
+* `GET /api/fasting/stats` / `GET /api/v1/stats`: Returns aggregated duration and count metrics.
+* `GET /healthz`: Service health check.
+
+### Running Locally
 ```bash
-python3 -m pip install fastapi uvicorn
-python3 scripts/sample_local_server.py
+cd server
+go test -v ./...
+go run . -port 8080 -db /path/to/fasting.db -token "your-secret-token"
+```
+
+### Running with Docker
+```bash
+# Build image (~9MB)
+docker build -t fasting-server:latest .
+
+# Run with persistent SQLite volume
+docker run -d \
+  --name fasting-server \
+  -p 8080:8080 \
+  -v fasting_data:/data \
+  -e FASTING_PORT=8080 \
+  -e FASTING_DB_PATH=/data/fasting.db \
+  -e FASTING_API_TOKEN="your-secret-token" \
+  fasting-server:latest
 ```

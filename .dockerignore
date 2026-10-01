@@ -1,0 +1,5 @@
+.git
+bin
+*.prg
+developer_key.*
+docs/assets

@@ -3,6 +3,14 @@ bin/
 *.prg
 *.iq
 
+# Go build outputs & SQLite databases
+fasting-server
+server/server
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
 # Private developer signing keys
 developer_key.pem
 developer_key.der
