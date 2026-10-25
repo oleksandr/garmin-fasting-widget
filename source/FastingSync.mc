@@ -16,6 +16,23 @@ class FastingSync {
 
     function startSync() as Void {
         var unsynced = FastingStorage.getUnsyncedFasts();
+
+        // If currently in an active fast, include the active session in the sync payload
+        if (FastingStorage.getState() == FastingStorage.STATE_FASTING && FastingStorage.getStartEpoch() > 0) {
+            var start = FastingStorage.getStartEpoch();
+            var now = Time.now().value();
+            var activeRecord = {
+                "id" => start,
+                "start" => start,
+                "end" => 0,
+                "target_hours" => FastingStorage.getTargetHours(),
+                "duration_hours" => (now - start) / 3600.0,
+                "state" => "FASTING",
+                "synced" => false
+            };
+            unsynced.add(activeRecord);
+        }
+
         if (unsynced.size() == 0) {
             _callback.invoke(true, "All synced");
             return;
