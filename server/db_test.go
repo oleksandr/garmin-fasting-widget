@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func newTestDB(t *testing.T) *DB {
@@ -166,5 +167,98 @@ func TestDB_Stats(t *testing.T) {
 	}
 	if stats.LongestHours != 20.0 {
 		t.Errorf("expected longest 20.0, got %f", stats.LongestHours)
+	}
+}
+
+func TestDB_GetDashboardData(t *testing.T) {
+	ctx := t.Context()
+	db := newTestDB(t)
+
+	now := time.Now()
+	// Insert completed fast and active fast
+	fasts := []FastRecord{
+		{
+			ID:            101,
+			Start:         now.Add(-20 * time.Hour).Unix(),
+			End:           now.Add(-4 * time.Hour).Unix(),
+			DurationHours: 16.0,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+		{
+			ID:          102,
+			Start:       now.Add(-2 * time.Hour).Unix(),
+			End:         0,
+			TargetHours: 16,
+			State:       "ACTIVE",
+		},
+	}
+
+	if _, err := db.UpsertFasts(ctx, fasts, "TestWatch", now.Unix()); err != nil {
+		t.Fatalf("upsert failed: %v", err)
+	}
+
+	data, err := db.GetDashboardData(ctx)
+	if err != nil {
+		t.Fatalf("GetDashboardData error: %v", err)
+	}
+
+	if data.TotalFasts != 2 {
+		t.Errorf("expected 2 total fasts, got %d", data.TotalFasts)
+	}
+	if data.ActiveFast == nil {
+		t.Fatalf("expected active fast to be detected")
+	}
+	if data.ActiveFast.ID != 102 {
+		t.Errorf("expected active fast ID 102, got %d", data.ActiveFast.ID)
+	}
+	if len(data.RecentFasts) != 2 {
+		t.Errorf("expected 2 recent fasts in dashboard, got %d", len(data.RecentFasts))
+	}
+	if len(data.WeeklyOverview) != 7 {
+		t.Errorf("expected 7 days in weekly overview, got %d", len(data.WeeklyOverview))
+	}
+}
+
+func TestCalculateStreakAndOverview(t *testing.T) {
+	now := time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
+
+	// Streak with today and yesterday completed
+	records := []FastRecord{
+		{
+			ID:            1,
+			Start:         now.Unix(),
+			DurationHours: 16.0,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+		{
+			ID:            2,
+			Start:         now.AddDate(0, 0, -1).Unix(),
+			DurationHours: 16.5,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+		{
+			ID:            3,
+			Start:         now.AddDate(0, 0, -2).Unix(),
+			DurationHours: 18.0,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+	}
+
+	streak := calculateStreak(records, now)
+	if streak != 3 {
+		t.Errorf("expected streak 3, got %d", streak)
+	}
+
+	bars := calculateWeeklyOverview(records, now)
+	if len(bars) != 7 {
+		t.Fatalf("expected 7 bars, got %d", len(bars))
+	}
+	// Last bar is today (index 6)
+	if !bars[6].Achieved || bars[6].Hours < 16.0 {
+		t.Errorf("expected today to be achieved, got %+v", bars[6])
 	}
 }

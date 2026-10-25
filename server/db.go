@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -15,6 +16,7 @@ type Store interface {
 	UpsertFasts(ctx context.Context, fasts []FastRecord, device string, defaultSyncedAt int64) (int, error)
 	GetHistory(ctx context.Context, limit int) ([]FastRecord, error)
 	GetStats(ctx context.Context) (StatsResponse, error)
+	GetDashboardData(ctx context.Context) (DashboardData, error)
 	Count(ctx context.Context) (int, error)
 }
 
@@ -222,6 +224,22 @@ func (d *DB) GetStats(ctx context.Context) (StatsResponse, error) {
 		return StatsResponse{}, fmt.Errorf("scanning stats: %w", err)
 	}
 
+	if stats.TotalFasts > 0 {
+		var completedCount int
+		err := d.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM fasts WHERE duration_hours >= target_hours;").Scan(&completedCount)
+		if err == nil {
+			stats.SuccessRatePct = (float64(completedCount) / float64(stats.TotalFasts)) * 100.0
+		}
+	}
+
+	// Fetch recent records to compute streak and weekly breakdown
+	recent, err := d.GetHistory(ctx, 60)
+	if err == nil {
+		now := time.Now()
+		stats.CurrentStreak = calculateStreak(recent, now)
+		stats.WeeklyOverview = calculateWeeklyOverview(recent, now)
+	}
+
 	return stats, nil
 }
 
@@ -233,4 +251,216 @@ func (d *DB) Count(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("counting records: %w", err)
 	}
 	return count, nil
+}
+
+// GetDashboardData aggregates metrics and formats history records for the web dashboard.
+func (d *DB) GetDashboardData(ctx context.Context) (DashboardData, error) {
+	stats, err := d.GetStats(ctx)
+	if err != nil {
+		return DashboardData{}, err
+	}
+
+	history, err := d.GetHistory(ctx, 30)
+	if err != nil {
+		return DashboardData{}, err
+	}
+
+	data := DashboardData{
+		TotalFasts:     stats.TotalFasts,
+		TotalHours:     fmt.Sprintf("%.1f", stats.TotalHours),
+		AverageHours:   fmt.Sprintf("%.1f", stats.AverageHours),
+		LongestHours:   fmt.Sprintf("%.1f", stats.LongestHours),
+		Streak:         stats.CurrentStreak,
+		SuccessRate:    fmt.Sprintf("%.0f%%", stats.SuccessRatePct),
+		WeeklyOverview: stats.WeeklyOverview,
+		ServerTime:     time.Now().Format("15:04:05 MST"),
+	}
+
+	views := make([]FastRecordView, 0, len(history))
+	nowUnix := time.Now().Unix()
+
+	for _, r := range history {
+		view := formatRecordView(r)
+		views = append(views, view)
+
+		// Detect active fast: explicit FASTING/ACTIVE state or unset end time with past start
+		isFastingState := strings.EqualFold(r.State, "FASTING") || strings.EqualFold(r.State, "ACTIVE")
+		isActiveTime := (r.End == 0 || r.End > nowUnix) && r.Start <= nowUnix && !strings.EqualFold(r.State, "COMPLETED")
+
+		if data.ActiveFast == nil && (isFastingState || isActiveTime) {
+			activeCopy := view
+			data.ActiveFast = &activeCopy
+		}
+	}
+	data.RecentFasts = views
+
+	return data, nil
+}
+
+func formatRecordView(r FastRecord) FastRecordView {
+	durationH := r.GetDuration()
+	targetH := r.GetTarget()
+
+	startTime := time.Unix(r.Start, 0)
+	var endTime time.Time
+	if r.End > 0 {
+		endTime = time.Unix(r.End, 0)
+	}
+
+	isFastingState := strings.EqualFold(r.State, "FASTING") || strings.EqualFold(r.State, "ACTIVE")
+
+	// If currently active and duration not finalized, compute elapsed duration
+	if durationH == 0 && (isFastingState || r.End == 0) && r.Start > 0 {
+		elapsed := time.Since(startTime).Hours()
+		if elapsed > 0 {
+			durationH = elapsed
+		}
+	}
+
+	// Format duration e.g. "16h 30m"
+	totalMinutes := int(durationH * 60)
+	dh := totalMinutes / 60
+	dm := totalMinutes % 60
+	durationStr := fmt.Sprintf("%dh %02dm", dh, dm)
+	if totalMinutes == 0 && durationH > 0 {
+		durationStr = fmt.Sprintf("%.1fh", durationH)
+	}
+
+	targetStr := fmt.Sprintf("%dh", targetH)
+
+	badgeClass := "badge-completed"
+	badgeText := "Completed"
+
+	if isFastingState || r.End == 0 {
+		badgeClass = "badge-active"
+		badgeText = "In Progress"
+	} else if durationH >= float64(targetH) && targetH > 0 {
+		badgeClass = "badge-goal"
+		badgeText = "Goal Met"
+	}
+
+	endFormatted := "--:--"
+	endDateFormatted := "--"
+	if r.End > 0 {
+		endFormatted = endTime.Format("15:04")
+		endDateFormatted = endTime.Format("Jan 02")
+	}
+
+	syncedAtStr := ""
+	if r.SyncedAt > 0 {
+		syncedAtStr = time.Unix(r.SyncedAt, 0).Format("Jan 02 15:04")
+	}
+
+	device := r.Device
+	if device == "" {
+		device = "Garmin Watch"
+	}
+
+	return FastRecordView{
+		ID:               r.ID,
+		StartDate:        startTime.Format("Mon, Jan 02"),
+		StartTime:        startTime.Format("15:04"),
+		EndDate:          endDateFormatted,
+		EndTime:          endFormatted,
+		DurationStr:      durationStr,
+		TargetStr:        targetStr,
+		DurationHours:    durationH,
+		TargetHours:      targetH,
+		State:            r.State,
+		StatusBadgeClass: badgeClass,
+		StatusBadgeText:  badgeText,
+		Device:           device,
+		SyncedAtStr:      syncedAtStr,
+	}
+}
+
+// calculateStreak returns the count of consecutive calendar days with successful fasts.
+func calculateStreak(records []FastRecord, now time.Time) int {
+	if len(records) == 0 {
+		return 0
+	}
+
+	successfulDays := make(map[string]bool)
+	for _, r := range records {
+		dur := r.GetDuration()
+		tgt := r.GetTarget()
+		if dur >= float64(tgt) && tgt > 0 {
+			// A fast counts towards the day it finished or started
+			if r.End > 0 {
+				endDate := time.Unix(r.End, 0).Format("2006-01-02")
+				successfulDays[endDate] = true
+			}
+			startDate := time.Unix(r.Start, 0).Format("2006-01-02")
+			successfulDays[startDate] = true
+		}
+	}
+
+	todayKey := now.Format("2006-01-02")
+	yesterdayKey := now.AddDate(0, 0, -1).Format("2006-01-02")
+
+	// If neither today nor yesterday has a completed fast, streak is 0
+	startOffset := 0
+	if successfulDays[todayKey] {
+		startOffset = 0
+	} else if successfulDays[yesterdayKey] {
+		startOffset = 1
+	} else {
+		return 0
+	}
+
+	streak := 0
+	for {
+		checkDay := now.AddDate(0, 0, -(startOffset + streak)).Format("2006-01-02")
+		if successfulDays[checkDay] {
+			streak++
+		} else {
+			break
+		}
+	}
+
+	return streak
+}
+
+// calculateWeeklyOverview builds a 7-day breakdown for the visual overview chart.
+func calculateWeeklyOverview(records []FastRecord, now time.Time) []DayBar {
+	bars := make([]DayBar, 7)
+
+	for i := range 7 {
+		offset := 6 - i
+		day := now.AddDate(0, 0, -offset)
+		dayKey := day.Format("2006-01-02")
+
+		var dayHours float64
+		var target float64 = 16.0
+
+		for _, r := range records {
+			rDay := time.Unix(r.Start, 0).Format("2006-01-02")
+			if rDay == dayKey {
+				dayHours += r.GetDuration()
+				if r.GetTarget() > 0 {
+					target = float64(r.GetTarget())
+				}
+			}
+		}
+
+		achieved := dayHours >= target && dayHours > 0
+		pct := int((dayHours / 24.0) * 100.0)
+		if pct > 100 {
+			pct = 100
+		}
+		if dayHours > 0 && pct < 10 {
+			pct = 10
+		}
+
+		bars[i] = DayBar{
+			DayName:   day.Format("Mon"),
+			DateStr:   day.Format("Jan 02"),
+			Hours:     dayHours,
+			Target:    target,
+			Achieved:  achieved,
+			HeightPct: pct,
+		}
+	}
+
+	return bars
 }

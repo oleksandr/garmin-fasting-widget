@@ -5,6 +5,7 @@ import (
 	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -186,5 +187,154 @@ func TestHealthHandler(t *testing.T) {
 	}
 	if healthResp.Status != "ok" {
 		t.Errorf("expected status 'ok', got %s", healthResp.Status)
+	}
+}
+
+func TestDashboardHandler(t *testing.T) {
+	srv, db := setupTestServer(t, "")
+	ctx := t.Context()
+
+	// Seed one fast
+	_, err := db.UpsertFasts(ctx, []FastRecord{
+		{ID: 999, Start: 1729000000, End: 1729057600, DurationHours: 16.0, TargetHours: 16, State: "COMPLETED"},
+	}, "Instinct 3", 1729060000)
+	if err != nil {
+		t.Fatalf("seed failed: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK from dashboard, got %d: %s", w.Code, w.Body.String())
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if !strings.Contains(contentType, "text/html") {
+		t.Errorf("expected text/html content-type, got %s", contentType)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "Garmin Fasting Dashboard") {
+		t.Errorf("dashboard html missing expected title header")
+	}
+	if !strings.Contains(body, "16.0h") {
+		t.Errorf("dashboard html missing expected duration 16.0h")
+	}
+}
+
+func TestAPIPost_SingleRecord(t *testing.T) {
+	srv, db := setupTestServer(t, "")
+
+	// Post single record (smartphone app shortcut / webhook style)
+	singlePayload := []byte(`{
+		"start": 1729100000,
+		"end": 1729157600,
+		"duration_hours": 16.0,
+		"target_hours": 16,
+		"state": "COMPLETED",
+		"device": "iPhone 15 Pro"
+	}`)
+
+	req := httptest.NewRequest("POST", "/api", bytes.NewReader(singlePayload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 from POST /api, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp SyncResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	if resp.ReceivedCount != 1 {
+		t.Errorf("expected received_count 1, got %d", resp.ReceivedCount)
+	}
+
+	count, _ := db.Count(t.Context())
+	if count != 1 {
+		t.Errorf("expected 1 record in db, got %d", count)
+	}
+}
+
+func TestAPIPost_RawArray(t *testing.T) {
+	srv, db := setupTestServer(t, "")
+
+	// Post raw array of records
+	arrayPayload := []byte(`[
+		{"id": 201, "start": 1729200000, "end": 1729257600, "duration": 16.0, "target": 16, "state": "COMPLETED"},
+		{"id": 202, "start": 1729300000, "end": 1729357600, "duration": 16.0, "target": 16, "state": "COMPLETED"}
+	]`)
+
+	req := httptest.NewRequest("POST", "/api", bytes.NewReader(arrayPayload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 from POST /api array, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp SyncResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	if resp.ReceivedCount != 2 {
+		t.Errorf("expected received_count 2, got %d", resp.ReceivedCount)
+	}
+
+	count, _ := db.Count(t.Context())
+	if count != 2 {
+		t.Errorf("expected 2 records in db, got %d", count)
+	}
+}
+
+func TestAPISummaryHandler(t *testing.T) {
+	srv, _ := setupTestServer(t, "")
+
+	req := httptest.NewRequest("GET", "/api", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 from GET /api, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var summary APISummaryResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &summary); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	if summary.Status != "ok" {
+		t.Errorf("expected status 'ok', got %s", summary.Status)
+	}
+	if summary.Documentation == "" {
+		t.Errorf("expected documentation string in api summary")
+	}
+}
+
+func TestAuth_AlternativeMethods(t *testing.T) {
+	const secret = "super-secret"
+	srv, _ := setupTestServer(t, secret)
+
+	payload := []byte(`{"start": 100, "end": 200, "duration_hours": 16, "target_hours": 16, "state": "COMPLETED"}`)
+
+	// 1. X-Api-Key header
+	req1 := httptest.NewRequest("POST", "/api", bytes.NewReader(payload))
+	req1.Header.Set("X-Api-Key", secret)
+	w1 := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w1, req1)
+	if w1.Code != http.StatusOK {
+		t.Errorf("expected 200 with X-Api-Key, got %d", w1.Code)
+	}
+
+	// 2. Query param ?token=
+	req2 := httptest.NewRequest("POST", "/api?token="+secret, bytes.NewReader(payload))
+	w2 := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w2, req2)
+	if w2.Code != http.StatusOK {
+		t.Errorf("expected 200 with ?token=, got %d", w2.Code)
 	}
 }

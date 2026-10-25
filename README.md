@@ -13,7 +13,9 @@ An intermittent fasting tracker widget built in Monkey C for the **Garmin Instin
 - **Physical Button Controls**: 100% button-driven navigation designed for the Instinct hardware (no touch needed).
 - **On-Wrist Time Adjustments**: Quick-shift windows by ±15 minutes using `UP` / `DOWN`, or fine-tune via the menu.
 - **Offline Storage**: Keeps a rolling on-device history of the last 30 completed fasts.
-- **Private LAN Sync**: Automatically pushes completed fasts to a self-hosted Go HTTP API on your home network.
+- **Homelab Sync**: Automatically syncs fasts over HTTPS to `https://fasting.home.lobunets.me/api` (or custom LAN host).
+- **Web Dashboard**: Self-hosted AMOLED dark dashboard (`/`) displaying streaks, weekly overview, and session history.
+- **Flexible Ingestion**: Ingests fasting data from Garmin watches or smartphone apps/shortcuts via `POST /api`.
 
 ---
 
@@ -36,9 +38,9 @@ An intermittent fasting tracker widget built in Monkey C for the **Garmin Instin
 - **Java**: OpenJDK 17+
 - **Developer Key**: 4096-bit RSA signing key (`developer_key.der`)
 
-### Go Sync Server
+### Go Companion Server
 - **Go**: 1.27+
-- **Docker** (optional, for containerized deployment)
+- **Docker / Podman** (for containerized deployment on homelab or cloud)
 
 ---
 
@@ -65,38 +67,50 @@ To test UI layouts locally without deploying to the physical device:
 
 ---
 
-## Go Sync Server & SQLite Storage
+## Go Sync Server & Dashboard
 
-A standalone HTTP server implemented in pure Go (standard library `net/http` and `encoding/json/v2`) with SQLite storage.
+A standalone server implemented in pure Go (standard library `net/http`, `html/template`, and `encoding/json/v2`) with SQLite storage. Zero external web frameworks.
 
 ### Endpoints
-- `POST /api/fasting/sync` (or `/api/v1/sync`): Receive batch fasting records from the watch.
-- `GET /api/fasting/history` (or `/api/v1/history`): Query recent fasts (`?limit=30`).
-- `GET /api/fasting/stats` (or `/api/v1/stats`): Summary metrics (total fasts, hours, averages).
+- `GET /`: AMOLED dark web dashboard with streaks, 7-day visual overview, and session table.
+- `POST /api`: Main data ingestion endpoint (accepts Garmin batch sync, raw JSON arrays, or single-record smartphone shortcut payloads).
+- `GET /api`: JSON API summary with live stats, uptime, and documentation.
+- `GET /api/fasting/history`: Query recent fasts (`?limit=30`).
+- `GET /api/fasting/stats`: Summary metrics (streaks, total fasts, total hours, averages).
 - `GET /healthz`: Service health check.
 
 ### Run Locally
 ```bash
 cd server
 go test -v ./...
-go run . -port 8080 -db fasting.db -token "your-secret-token"
+go run . -port 8080 -db fasting.db -token "optional-secret-token"
 ```
 
-### Run with Docker
+### Run with Docker / Podman
 ```bash
-# Build image (minimal ~9MB Alpine container)
+# Build image (~9MB Alpine container)
 docker build -t fasting-server:latest .
 
 # Run container with persistent volume
 docker run -d \
   --name fasting-server \
-  -p 8080:8080 \
+  -p 18090:8080 \
   -v fasting_data:/data \
   -e FASTING_PORT=8080 \
   -e FASTING_DB_PATH=/data/fasting.db \
-  -e FASTING_API_TOKEN="your-secret-token" \
+  -e FASTING_API_TOKEN="optional-secret-token" \
   fasting-server:latest
 ```
+
+### Homelab Deployment (ZimaBoard / Caddy)
+Exposed via Caddy reverse proxy at `https://fasting.home.lobunets.me`:
+```caddy
+fasting.home.lobunets.me {
+    import tls_letsencrypt
+    reverse_proxy 127.0.0.1:18090
+}
+```
+
 
 ---
 

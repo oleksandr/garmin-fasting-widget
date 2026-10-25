@@ -16,13 +16,14 @@ Because the Garmin watch communicates via Bluetooth Low Energy (BLE) through the
 
 ## 2. API Endpoint Specification
 
-* **Path**: `/api/fasting/sync`
+### Main Ingestion Endpoint: `POST /api` (also aliased as `/api/fasting/sync`)
 * **Method**: `POST`
+* **Path**: `/api` (or `/api/fasting/sync`)
 * **Headers**:
   * `Content-Type: application/json`
-  * `Authorization: Bearer <API_SECRET_TOKEN>` (Configurable in Connect IQ App Settings)
+  * `Authorization: Bearer <API_SECRET_TOKEN>` (or `X-Api-Key: <TOKEN>`, or query parameter `?token=<TOKEN>`)
 
-### Request Payload Schema
+#### Format A: Garmin Watch Batch Sync
 ```json
 {
   "device": "Instinct 3 AMOLED 50mm",
@@ -40,15 +41,38 @@ Because the Garmin watch communicates via Bluetooth Low Energy (BLE) through the
 }
 ```
 
-### Expected Response
-* **HTTP 200 OK**:
-  ```json
+#### Format B: Smartphone App / iOS Shortcut / Automation Single Record
+```json
+{
+  "start": 1727434800,
+  "end": 1727492400,
+  "duration_hours": 16.0,
+  "target_hours": 16,
+  "state": "COMPLETED",
+  "device": "iPhone"
+}
+```
+
+#### Format C: Raw JSON Array
+```json
+[
   {
-    "status": "success",
-    "received_count": 1
+    "id": 1727434800,
+    "start": 1727434800,
+    "end": 1727492400,
+    "duration_hours": 16.0,
+    "target_hours": 16,
+    "state": "COMPLETED"
   }
-  ```
-  *When the watch receives HTTP 200, it marks the transmitted records as `synced: true`.*
+]
+```
+
+### Dashboard Endpoint: `GET /`
+Returns the AMOLED-dark, responsive HTML dashboard showing current streak, total fasts, 7-day visual overview chart, active session banner, and rolling fast history table. Zero external JS/CSS dependencies.
+
+### API Summary: `GET /api`
+Returns JSON metrics, active session, recent records, and endpoint documentation.
+
 
 ---
 

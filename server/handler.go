@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"cmp"
 	"crypto/subtle"
 	"encoding/json/v2"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -31,15 +34,18 @@ func NewServer(store Store, authToken string) *Server {
 }
 
 func (s *Server) routes() {
-	// Sync endpoints (both Garmin path and standard v1 API path)
+	// Dashboard endpoint
+	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
+
+	// Main API endpoints
+	s.mux.HandleFunc("POST /api", s.handleSync)
+	s.mux.HandleFunc("GET /api", s.handleAPISummary)
+
+	// Garmin & v1 compatibility endpoints
 	s.mux.HandleFunc("POST /api/fasting/sync", s.handleSync)
 	s.mux.HandleFunc("POST /api/v1/sync", s.handleSync)
-
-	// History query endpoints
 	s.mux.HandleFunc("GET /api/fasting/history", s.handleHistory)
 	s.mux.HandleFunc("GET /api/v1/history", s.handleHistory)
-
-	// Stats query endpoints
 	s.mux.HandleFunc("GET /api/fasting/stats", s.handleStats)
 	s.mux.HandleFunc("GET /api/v1/stats", s.handleStats)
 
@@ -57,13 +63,67 @@ func (s *Server) checkAuth(r *http.Request) bool {
 		return true
 	}
 
-	authHeader := r.Header.Get("Authorization")
-	token, ok := strings.CutPrefix(authHeader, "Bearer ")
-	if !ok {
+	token := ""
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		if t, ok := strings.CutPrefix(authHeader, "Bearer "); ok {
+			token = strings.TrimSpace(t)
+		}
+	}
+	if token == "" {
+		token = strings.TrimSpace(r.Header.Get("X-Api-Key"))
+	}
+	if token == "" {
+		token = strings.TrimSpace(r.URL.Query().Get("token"))
+	}
+	if token == "" {
+		token = strings.TrimSpace(r.URL.Query().Get("key"))
+	}
+
+	if token == "" {
 		return false
 	}
 
-	return subtle.ConstantTimeCompare([]byte(strings.TrimSpace(token)), []byte(s.authToken)) == 1
+	return subtle.ConstantTimeCompare([]byte(token), []byte(s.authToken)) == 1
+}
+
+func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
+	data, err := s.store.GetDashboardData(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "database error: "+err.Error())
+		return
+	}
+
+	data.ServerUptime = time.Since(s.startTime).Truncate(time.Second).String()
+	data.ServerTime = time.Now().Format("2006-01-02 15:04:05 MST")
+	renderDashboard(w, data)
+}
+
+func (s *Server) handleAPISummary(w http.ResponseWriter, r *http.Request) {
+	if !s.checkAuth(r) {
+		writeError(w, http.StatusUnauthorized, "invalid or missing authorization token")
+		return
+	}
+
+	stats, err := s.store.GetStats(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "database error: "+err.Error())
+		return
+	}
+
+	recent, err := s.store.GetHistory(r.Context(), 5)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "database error: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, APISummaryResponse{
+		Status:        "ok",
+		ServerTime:    time.Now().Format(time.RFC3339),
+		Uptime:        time.Since(s.startTime).Truncate(time.Second).String(),
+		Stats:         stats,
+		RecentFasts:   recent,
+		Documentation: "POST JSON fasting records to /api or /api/fasting/sync. View visual dashboard at /",
+	})
 }
 
 func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
@@ -72,13 +132,54 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req SyncRequest
-	if err := json.UnmarshalRead(r.Body, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json payload: "+err.Error())
+	// Read body up to 1MB
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "failed to read request body: "+err.Error())
 		return
 	}
 
-	count, err := s.store.UpsertFasts(r.Context(), req.Fasts, req.Device, req.SyncedAt)
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 {
+		writeError(w, http.StatusBadRequest, "request body cannot be empty")
+		return
+	}
+
+	var fasts []FastRecord
+	device := cmp.Or(r.URL.Query().Get("device"), r.Header.Get("X-Device-Name"), "smartphone")
+	syncedAt := time.Now().Unix()
+
+	if trimmed[0] == '[' {
+		// Array payload: [ { "start": ... }, ... ]
+		if err := json.Unmarshal(trimmed, &fasts); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid json array: "+err.Error())
+			return
+		}
+	} else if trimmed[0] == '{' {
+		// Object payload: FlexibleSyncRequest (supports batch, Garmin sync, or single record)
+		var req FlexibleSyncRequest
+		if err := json.Unmarshal(trimmed, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid json object: "+err.Error())
+			return
+		}
+		fasts = req.ExtractFasts()
+		if req.Device != "" {
+			device = req.Device
+		}
+		if req.SyncedAt > 0 {
+			syncedAt = req.SyncedAt
+		}
+	} else {
+		writeError(w, http.StatusBadRequest, "invalid json format: expected object or array")
+		return
+	}
+
+	if len(fasts) == 0 {
+		writeError(w, http.StatusBadRequest, "no fasting records found in request")
+		return
+	}
+
+	count, err := s.store.UpsertFasts(r.Context(), fasts, device, syncedAt)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "database error: "+err.Error())
 		return
@@ -87,6 +188,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, SyncResponse{
 		Status:        "success",
 		ReceivedCount: count,
+		Message:       "fasting records synced successfully",
 	})
 }
 

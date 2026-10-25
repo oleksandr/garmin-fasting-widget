@@ -21,7 +21,7 @@ class FastingSync {
             return;
         }
 
-        var url = "https://fasting.lan.home/api/fasting/sync";
+        var url = "https://fasting.home.lobunets.me/api";
         var token = "your_secret_token_here";
 
         try {
