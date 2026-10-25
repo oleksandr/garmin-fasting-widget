@@ -222,8 +222,8 @@ func TestDashboardHandler(t *testing.T) {
 	if !strings.Contains(body, "16.0h") {
 		t.Errorf("dashboard html missing expected duration 16.0h")
 	}
-	if !strings.Contains(body, "90-Day Fasting Activity") {
-		t.Errorf("dashboard html missing 90-day activity section")
+	if !strings.Contains(body, "12-Month Fasting Activity") {
+		t.Errorf("dashboard html missing 12-month activity section")
 	}
 	if !strings.Contains(body, "heat-cell") {
 		t.Errorf("dashboard html missing heat-cell classes")

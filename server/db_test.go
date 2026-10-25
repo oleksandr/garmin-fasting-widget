@@ -271,35 +271,42 @@ func TestCalculateHeatmap(t *testing.T) {
 	records := []FastRecord{
 		{
 			ID:            1,
-			Start:         now.Unix(), // Today: 17h -> Goal Met (Level 3)
+			Start:         now.Unix(), // Today: 17h -> Normalized to 16h max -> Goal Met (Level 4)
 			DurationHours: 17.0,
 			TargetHours:   16,
 			State:         "COMPLETED",
 		},
 		{
 			ID:            2,
-			Start:         now.AddDate(0, 0, -1).Unix(), // Yesterday: 21h -> Extended (Level 4)
+			Start:         now.AddDate(0, 0, -1).Unix(), // Yesterday: 21h -> Everything 16h+ is good (Level 4)
 			DurationHours: 21.0,
 			TargetHours:   16,
 			State:         "COMPLETED",
 		},
 		{
 			ID:            3,
-			Start:         now.AddDate(0, 0, -2).Unix(), // 2 days ago: 14h -> Level 2
+			Start:         now.AddDate(0, 0, -2).Unix(), // 2 days ago: 14h -> Level 3 (12-16h)
 			DurationHours: 14.0,
 			TargetHours:   16,
 			State:         "COMPLETED",
 		},
 		{
 			ID:            4,
-			Start:         now.AddDate(0, 0, -3).Unix(), // 3 days ago: 8h -> Level 1
-			DurationHours: 8.0,
+			Start:         now.AddDate(0, 0, -3).Unix(), // 3 days ago: 10h -> Level 2 (8-12h)
+			DurationHours: 10.0,
 			TargetHours:   16,
 			State:         "COMPLETED",
 		},
 		{
 			ID:            5,
-			Start:         now.AddDate(0, 0, -100).Unix(), // 100 days ago (outside 90-day window)
+			Start:         now.AddDate(0, 0, -4).Unix(), // 4 days ago: 5h -> Level 1 (<8h)
+			DurationHours: 5.0,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+		{
+			ID:            6,
+			Start:         now.AddDate(0, 0, -400).Unix(), // 400 days ago (outside 365-day window)
 			DurationHours: 20.0,
 			TargetHours:   16,
 			State:         "COMPLETED",
@@ -308,36 +315,36 @@ func TestCalculateHeatmap(t *testing.T) {
 
 	heatmap := calculateHeatmap(records, now)
 
-	if len(heatmap.Weeks) < 13 || len(heatmap.Weeks) > 15 {
-		t.Errorf("expected 13-14 weeks for 90 days, got %d", len(heatmap.Weeks))
+	if len(heatmap.Weeks) < 52 || len(heatmap.Weeks) > 54 {
+		t.Errorf("expected 52-54 weeks for 365 days, got %d", len(heatmap.Weeks))
 	}
 
-	if heatmap.ActiveDays != 4 {
-		t.Errorf("expected 4 active days within 90-day window, got %d", heatmap.ActiveDays)
+	if heatmap.ActiveDays != 5 {
+		t.Errorf("expected 5 active days within 365-day window, got %d", heatmap.ActiveDays)
 	}
 
-	if heatmap.Total90dFasts != 4 {
-		t.Errorf("expected 4 fasts within 90-day window, got %d", heatmap.Total90dFasts)
+	if heatmap.TotalFasts != 5 {
+		t.Errorf("expected 5 fasts within 365-day window, got %d", heatmap.TotalFasts)
 	}
 
-	expectedHours := 17.0 + 21.0 + 14.0 + 8.0 // 60.0h
-	if heatmap.Total90dHours != fmt.Sprintf("%.1f", expectedHours) {
-		t.Errorf("expected Total90dHours %.1f, got %s", expectedHours, heatmap.Total90dHours)
+	expectedHours := 17.0 + 21.0 + 14.0 + 10.0 + 5.0 // 67.0h
+	if heatmap.TotalHours != fmt.Sprintf("%.1f", expectedHours) {
+		t.Errorf("expected TotalHours %.1f, got %s", expectedHours, heatmap.TotalHours)
 	}
 
-	// 2 out of 4 days met the 16h target (17h and 21h) -> 50%
-	if heatmap.SuccessRate != "50%" {
-		t.Errorf("expected SuccessRate 50%%, got %s", heatmap.SuccessRate)
+	// 2 out of 5 days met the 16h target (17h and 21h) -> 40%
+	if heatmap.SuccessRate != "40%" {
+		t.Errorf("expected SuccessRate 40%%, got %s", heatmap.SuccessRate)
 	}
 
-	// Check today cell in the last week
+	// Check today cell in the last week (17h -> Level 4)
 	lastWeek := heatmap.Weeks[len(heatmap.Weeks)-1]
 	var foundToday bool
 	for _, day := range lastWeek.Days {
 		if day.IsToday {
 			foundToday = true
-			if day.Level != 3 {
-				t.Errorf("expected today level 3 (17h), got %d", day.Level)
+			if day.Level != 4 {
+				t.Errorf("expected today level 4 (17h normalized to 16h max), got %d", day.Level)
 			}
 			if !day.Achieved {
 				t.Errorf("expected today to have Achieved = true")
@@ -351,14 +358,14 @@ func TestCalculateHeatmap(t *testing.T) {
 		t.Errorf("today cell not found in last week")
 	}
 
-	// Verify month labels are non-empty for start and transitions
+	// Verify month labels are non-empty for start and transitions (all 12 months)
 	var monthLabels []string
 	for _, w := range heatmap.Weeks {
 		if w.MonthLabel != "" {
 			monthLabels = append(monthLabels, w.MonthLabel)
 		}
 	}
-	if len(monthLabels) < 3 {
-		t.Errorf("expected at least 3 month labels across 90 days, got %v", monthLabels)
+	if len(monthLabels) < 12 {
+		t.Errorf("expected at least 12 month labels across 365 days, got %v", monthLabels)
 	}
 }

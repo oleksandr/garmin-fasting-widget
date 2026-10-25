@@ -145,13 +145,15 @@ type HeatmapWeek struct {
 	Days       [7]HeatmapDay `json:"days"`        // Index 0=Mon, 1=Tue, ..., 6=Sun
 }
 
-// HeatmapData groups all weeks and summary stats for the 90-day calendar.
+// HeatmapData groups all weeks and summary stats for the 12-month activity calendar.
 type HeatmapData struct {
 	Weeks         []HeatmapWeek `json:"weeks"`
-	Total90dHours string        `json:"total_90d_hours"`
-	Total90dFasts int           `json:"total_90d_fasts"`
+	TotalHours    string        `json:"total_hours"`
+	TotalFasts    int           `json:"total_fasts"`
 	ActiveDays    int           `json:"active_days"`
 	SuccessRate   string        `json:"success_rate"`
+	Total90dHours string        `json:"total_90d_hours,omitzero"`
+	Total90dFasts int           `json:"total_90d_fasts,omitzero"`
 }
 
 // FastRecordView formats a FastRecord for presentation on the HTML dashboard.

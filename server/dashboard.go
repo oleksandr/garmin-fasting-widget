@@ -493,14 +493,14 @@ const dashboardHTML = `<!DOCTYPE html>
 
         .heatmap-month-row {
             display: flex;
-            margin-left: 34px;
-            gap: 4px;
+            margin-left: 28px;
+            gap: 3px;
         }
 
         .heatmap-month-cell {
-            width: 18px;
+            width: 14px;
             flex-shrink: 0;
-            font-size: 11px;
+            font-size: 10px;
             color: var(--text-muted);
             font-weight: 600;
             white-space: nowrap;
@@ -509,43 +509,43 @@ const dashboardHTML = `<!DOCTYPE html>
 
         .heatmap-body {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: flex-start;
         }
 
         .heatmap-weekdays {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
             padding-top: 1px;
         }
 
         .heatmap-weekday-label {
-            height: 18px;
-            line-height: 18px;
-            font-size: 10px;
+            height: 14px;
+            line-height: 14px;
+            font-size: 9px;
             color: var(--text-sub);
             font-weight: 500;
             text-align: right;
-            width: 26px;
+            width: 22px;
         }
 
         .heatmap-grid {
             display: flex;
-            gap: 4px;
+            gap: 3px;
         }
 
         .heatmap-col {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            width: 18px;
+            gap: 3px;
+            width: 14px;
         }
 
         .heat-cell {
-            width: 18px;
-            height: 18px;
-            border-radius: 4px;
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
             cursor: pointer;
             transition: transform 0.12s ease, filter 0.12s ease;
             position: relative;
@@ -718,18 +718,18 @@ const dashboardHTML = `<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- 90-Day Fasting Activity Heatmap -->
+        <!-- 12-Month Fasting Activity Heatmap -->
         <div class="panel" style="margin-bottom: 28px;">
             <div class="panel-header">
                 <div>
-                    <div class="panel-title">90-Day Fasting Activity</div>
+                    <div class="panel-title">12-Month Fasting Activity</div>
                     <div style="font-size: 12px; color: var(--text-sub); margin-top: 3px;">
-                        Daily fasting consistency &amp; goal achievement
+                        Daily fasting consistency &amp; goal achievement (past 365 days)
                     </div>
                 </div>
                 <div class="panel-meta-badges">
                     <span class="meta-chip"><strong>{{.Heatmap.ActiveDays}}</strong> Active Days</span>
-                    <span class="meta-chip"><strong>{{.Heatmap.Total90dHours}}h</strong> Fasted</span>
+                    <span class="meta-chip"><strong>{{.Heatmap.TotalHours}}h</strong> Fasted</span>
                     <span class="meta-chip emerald"><strong>{{.Heatmap.SuccessRate}}</strong> Goal Met</span>
                 </div>
             </div>
@@ -776,10 +776,10 @@ const dashboardHTML = `<!DOCTYPE html>
             <div class="heatmap-footer">
                 <div class="legend-scale-desc">
                     <div class="legend-item"><span class="legend-cell level-0"></span> None</div>
-                    <div class="legend-item"><span class="legend-cell level-1"></span> &lt;12h</div>
-                    <div class="legend-item"><span class="legend-cell level-2"></span> 12-16h</div>
-                    <div class="legend-item"><span class="legend-cell level-3"></span> 16-20h (Goal Met)</div>
-                    <div class="legend-item"><span class="legend-cell level-4"></span> 20h+ (Extended)</div>
+                    <div class="legend-item"><span class="legend-cell level-1"></span> &lt;8h</div>
+                    <div class="legend-item"><span class="legend-cell level-2"></span> 8-12h</div>
+                    <div class="legend-item"><span class="legend-cell level-3"></span> 12-16h</div>
+                    <div class="legend-item"><span class="legend-cell level-4"></span> 16h+ (Goal Met)</div>
                 </div>
                 <div class="heatmap-legend">
                     <span>Less</span>

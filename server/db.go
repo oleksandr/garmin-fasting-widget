@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -233,8 +234,8 @@ func (d *DB) GetStats(ctx context.Context) (StatsResponse, error) {
 		}
 	}
 
-	// Fetch recent records to compute streak, weekly breakdown, and 90-day heatmap
-	recent, err := d.GetHistory(ctx, 300)
+	// Fetch recent records to compute streak, weekly breakdown, and 12-month heatmap
+	recent, err := d.GetHistory(ctx, 1000)
 	if err == nil {
 		now := time.Now()
 		stats.CurrentStreak = calculateStreak(recent, now)
@@ -476,9 +477,9 @@ func calculateWeeklyOverview(records []FastRecord, now time.Time) []DayBar {
 	return bars
 }
 
-// calculateHeatmap generates a 90-day GitHub-style activity calendar grouped into weeks.
+// calculateHeatmap generates a 12-month (365-day) GitHub-style activity calendar grouped into weeks.
 func calculateHeatmap(records []FastRecord, now time.Time) HeatmapData {
-	const totalDays = 90
+	const totalDays = 365
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	startDate := today.AddDate(0, 0, -(totalDays - 1))
 	todayKey := today.Format("2006-01-02")
@@ -537,7 +538,10 @@ func calculateHeatmap(records []FastRecord, now time.Time) HeatmapData {
 
 			hours := dayHours[dKey]
 			target := cmp.Or(dayTargets[dKey], 16.0)
-			achieved := hours >= target && hours > 0
+
+			// Normalize calculations to 16h max when doing color coding
+			normHours := min(hours, 16.0)
+			achieved := (hours >= target || math.Round(hours*10)/10.0 >= target || normHours >= 16.0) && hours > 0
 
 			totalHours += hours
 			totalFasts += dayFastCount[dKey]
@@ -552,20 +556,21 @@ func calculateHeatmap(records []FastRecord, now time.Time) HeatmapData {
 			switch {
 			case hours <= 0:
 				level = 0
-			case hours < 12.0:
+			case normHours < 8.0:
 				level = 1
-			case hours < 16.0:
+			case normHours < 12.0:
 				level = 2
-			case hours < 20.0:
+			case normHours < 16.0 && !achieved:
 				level = 3
 			default:
+				// Everything 16h and more is good (Level 4, Goal Met)
 				level = 4
 			}
 
 			var tooltip string
 			if hours <= 0 {
 				tooltip = fmt.Sprintf("%s: No fast recorded", d.Format("Mon, Jan 02"))
-			} else if achieved {
+			} else if achieved || hours >= 16.0 {
 				tooltip = fmt.Sprintf("%s: %.1fh fasting (Goal Met! ⭐)", d.Format("Mon, Jan 02"), hours)
 			} else {
 				tooltip = fmt.Sprintf("%s: %.1fh fasting (Target: %.0fh)", d.Format("Mon, Jan 02"), hours, target)
@@ -597,9 +602,11 @@ func calculateHeatmap(records []FastRecord, now time.Time) HeatmapData {
 
 	return HeatmapData{
 		Weeks:         weeks,
-		Total90dHours: fmt.Sprintf("%.1f", totalHours),
-		Total90dFasts: totalFasts,
+		TotalHours:    fmt.Sprintf("%.1f", totalHours),
+		TotalFasts:    totalFasts,
 		ActiveDays:    activeDays,
 		SuccessRate:   successRateStr,
+		Total90dHours: fmt.Sprintf("%.1f", totalHours),
+		Total90dFasts: totalFasts,
 	}
 }
