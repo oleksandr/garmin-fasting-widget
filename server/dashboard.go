@@ -10,7 +10,7 @@ const dashboardHTML = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garmin Fasting Dashboard | fasting.home.lobunets.me</title>
+    <title>Garmin Fasting Dashboard</title>
     <style>
         :root {
             --bg-base: #0a0a0c;
@@ -463,7 +463,7 @@ const dashboardHTML = `<!DOCTYPE html>
                 <div class="header-logo">⏳</div>
                 <div>
                     <h1>Garmin Fasting Tracker</h1>
-                    <div class="host-badge">fasting.home.lobunets.me</div>
+                    <div class="host-badge">Self-Hosted Homelab</div>
                 </div>
             </div>
             <div class="header-meta">
@@ -558,7 +558,7 @@ const dashboardHTML = `<!DOCTYPE html>
                     Post sync payloads from Garmin Connect Mobile or smartphone shortcuts:
                 </p>
                 <div class="code-box">
-                    POST https://fasting.home.lobunets.me/api<br>
+                    POST /api<br>
                     Content-Type: application/json<br>
                     Authorization: Bearer &lt;TOKEN&gt;
                 </div>
