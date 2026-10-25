@@ -111,6 +111,53 @@ fasting.home.lobunets.me {
 }
 ```
 
+### Authentication & API Keys
+
+- **Default (Open Access)**: If `FASTING_API_TOKEN` is unset or empty, the server accepts all requests without requiring an API key.
+- **Enabling Authentication**: Pass `-token "secret-key"` or set `FASTING_API_TOKEN="secret-key"` in the container environment.
+- **Accepted Authentication Methods**:
+  - `Authorization: Bearer <TOKEN>` header
+  - `X-Api-Key: <TOKEN>` header
+  - URL query parameter: `?token=<TOKEN>` or `?key=<TOKEN>`
+
+---
+
+## iOS App Configuration
+
+### 1. Garmin Connect IQ iOS App (Watch Sync)
+To configure or verify the sync endpoint for the watch widget:
+1. Open the **Connect IQ Store** app on your iPhone.
+2. Go to **My Device** (bottom navigation) &rarr; **My Device Apps** (or **Glances**).
+3. Tap **Fasting** &rarr; **Settings**.
+4. Configure the settings:
+   - **Local API Endpoint**: `https://fasting.home.lobunets.me/api`
+   - **API Bearer Token**: Enter your secret token (or leave blank if authentication is disabled).
+   - **Target Fasting Hours**: e.g., `16`
+   - **Target Eating Window Hours**: e.g., `8`
+5. Tap **Save**. Settings sync to the watch over Bluetooth.
+
+*(Note: Sideloaded PRG builds already have `https://fasting.home.lobunets.me/api` baked in as the default).*
+
+### 2. Apple Shortcuts (Smartphone Logging)
+To log fasting sessions directly from your iPhone without the watch:
+1. Open the **Shortcuts** app on iOS and tap **+** (New Shortcut).
+2. Add the **Get Contents of URL** action:
+   - **URL**: `https://fasting.home.lobunets.me/api`
+   - **Method**: `POST`
+   - **Headers**:
+     - `Content-Type`: `application/json`
+     - *(Optional)* `Authorization`: `Bearer your-token` (or append `?token=your-token` to the URL)
+   - **Request Body**: `JSON`
+     - `start`: Number (e.g. Unix epoch `1729800000`)
+     - `end`: Number (e.g. Unix epoch `1729857600`)
+     - `duration_hours`: Number (`16.0`)
+     - `target_hours`: Number (`16`)
+     - `state`: Text (`COMPLETED`)
+     - `device`: Text (`iPhone Shortcuts`)
+3. Save shortcut to your Home Screen, Action Button, or trigger via Siri.
+
+---
+
 
 ---
 

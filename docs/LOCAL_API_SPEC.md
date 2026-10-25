@@ -116,10 +116,46 @@ docker build -t fasting-server:latest .
 # Run with persistent SQLite volume
 docker run -d \
   --name fasting-server \
-  -p 8080:8080 \
+  -p 18090:8080 \
   -v fasting_data:/data \
   -e FASTING_PORT=8080 \
   -e FASTING_DB_PATH=/data/fasting.db \
-  -e FASTING_API_TOKEN="your-secret-token" \
+  -e FASTING_API_TOKEN="optional-secret-token" \
   fasting-server:latest
 ```
+
+---
+
+## 5. Authentication & API Key Specification
+
+* **Default Mode (Open Access)**: When `FASTING_API_TOKEN` is unset or empty, authentication is disabled. Any client can sync records without providing credentials.
+* **Token Mode**: When `FASTING_API_TOKEN` is set, the server verifies tokens in constant time using `crypto/subtle`.
+* **Supported Authorization Transport**:
+  1. `Authorization: Bearer <TOKEN>` header
+  2. `X-Api-Key: <TOKEN>` header
+  3. `?token=<TOKEN>` or `?key=<TOKEN>` query string parameter
+
+---
+
+## 6. Configuring Endpoint on iOS
+
+### Option A: Garmin Connect IQ iOS App (Watch Sideloading & Settings)
+When using the widget on your Garmin Instinct 3 AMOLED:
+1. Open the **Connect IQ Store** app on your iPhone.
+2. Select **My Device** &rarr; **My Device Apps** &rarr; **Fasting**.
+3. Tap **Settings**.
+4. Configure:
+   * **Local API Endpoint**: `https://fasting.home.lobunets.me/api`
+   * **API Bearer Token**: Your configured token (or leave blank for open access).
+5. Tap **Save** to push configuration to the watch via BLE.
+*(Note: Pre-compiled PRG builds already default to `https://fasting.home.lobunets.me/api`)*.
+
+### Option B: Apple Shortcuts (Direct iPhone Tracking)
+To log fasting sessions directly from iOS:
+1. Create a new Shortcut in the **Shortcuts** app.
+2. Add **Get Contents of URL**:
+   * URL: `https://fasting.home.lobunets.me/api`
+   * Method: `POST`
+   * Headers: `Content-Type: application/json` (plus `Authorization: Bearer <token>` if token enabled)
+   * Request Body: `JSON` with `start`, `end`, `duration_hours`, `target_hours`, `state`, and `device`.
+
