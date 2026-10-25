@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -260,5 +262,103 @@ func TestCalculateStreakAndOverview(t *testing.T) {
 	// Last bar is today (index 6)
 	if !bars[6].Achieved || bars[6].Hours < 16.0 {
 		t.Errorf("expected today to be achieved, got %+v", bars[6])
+	}
+}
+
+func TestCalculateHeatmap(t *testing.T) {
+	now := time.Date(2026, 10, 25, 14, 30, 0, 0, time.UTC)
+
+	records := []FastRecord{
+		{
+			ID:            1,
+			Start:         now.Unix(), // Today: 17h -> Goal Met (Level 3)
+			DurationHours: 17.0,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+		{
+			ID:            2,
+			Start:         now.AddDate(0, 0, -1).Unix(), // Yesterday: 21h -> Extended (Level 4)
+			DurationHours: 21.0,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+		{
+			ID:            3,
+			Start:         now.AddDate(0, 0, -2).Unix(), // 2 days ago: 14h -> Level 2
+			DurationHours: 14.0,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+		{
+			ID:            4,
+			Start:         now.AddDate(0, 0, -3).Unix(), // 3 days ago: 8h -> Level 1
+			DurationHours: 8.0,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+		{
+			ID:            5,
+			Start:         now.AddDate(0, 0, -100).Unix(), // 100 days ago (outside 90-day window)
+			DurationHours: 20.0,
+			TargetHours:   16,
+			State:         "COMPLETED",
+		},
+	}
+
+	heatmap := calculateHeatmap(records, now)
+
+	if len(heatmap.Weeks) < 13 || len(heatmap.Weeks) > 15 {
+		t.Errorf("expected 13-14 weeks for 90 days, got %d", len(heatmap.Weeks))
+	}
+
+	if heatmap.ActiveDays != 4 {
+		t.Errorf("expected 4 active days within 90-day window, got %d", heatmap.ActiveDays)
+	}
+
+	if heatmap.Total90dFasts != 4 {
+		t.Errorf("expected 4 fasts within 90-day window, got %d", heatmap.Total90dFasts)
+	}
+
+	expectedHours := 17.0 + 21.0 + 14.0 + 8.0 // 60.0h
+	if heatmap.Total90dHours != fmt.Sprintf("%.1f", expectedHours) {
+		t.Errorf("expected Total90dHours %.1f, got %s", expectedHours, heatmap.Total90dHours)
+	}
+
+	// 2 out of 4 days met the 16h target (17h and 21h) -> 50%
+	if heatmap.SuccessRate != "50%" {
+		t.Errorf("expected SuccessRate 50%%, got %s", heatmap.SuccessRate)
+	}
+
+	// Check today cell in the last week
+	lastWeek := heatmap.Weeks[len(heatmap.Weeks)-1]
+	var foundToday bool
+	for _, day := range lastWeek.Days {
+		if day.IsToday {
+			foundToday = true
+			if day.Level != 3 {
+				t.Errorf("expected today level 3 (17h), got %d", day.Level)
+			}
+			if !day.Achieved {
+				t.Errorf("expected today to have Achieved = true")
+			}
+			if !strings.Contains(day.Tooltip, "Goal Met!") {
+				t.Errorf("expected tooltip to indicate goal met, got: %s", day.Tooltip)
+			}
+		}
+	}
+	if !foundToday {
+		t.Errorf("today cell not found in last week")
+	}
+
+	// Verify month labels are non-empty for start and transitions
+	var monthLabels []string
+	for _, w := range heatmap.Weeks {
+		if w.MonthLabel != "" {
+			monthLabels = append(monthLabels, w.MonthLabel)
+		}
+	}
+	if len(monthLabels) < 3 {
+		t.Errorf("expected at least 3 month labels across 90 days, got %v", monthLabels)
 	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
@@ -232,12 +233,14 @@ func (d *DB) GetStats(ctx context.Context) (StatsResponse, error) {
 		}
 	}
 
-	// Fetch recent records to compute streak and weekly breakdown
-	recent, err := d.GetHistory(ctx, 60)
+	// Fetch recent records to compute streak, weekly breakdown, and 90-day heatmap
+	recent, err := d.GetHistory(ctx, 300)
 	if err == nil {
 		now := time.Now()
 		stats.CurrentStreak = calculateStreak(recent, now)
 		stats.WeeklyOverview = calculateWeeklyOverview(recent, now)
+		heatmap := calculateHeatmap(recent, now)
+		stats.Heatmap = &heatmap
 	}
 
 	return stats, nil
@@ -265,6 +268,13 @@ func (d *DB) GetDashboardData(ctx context.Context) (DashboardData, error) {
 		return DashboardData{}, err
 	}
 
+	var heatmap HeatmapData
+	if stats.Heatmap != nil {
+		heatmap = *stats.Heatmap
+	} else {
+		heatmap = calculateHeatmap(history, time.Now())
+	}
+
 	data := DashboardData{
 		TotalFasts:     stats.TotalFasts,
 		TotalHours:     fmt.Sprintf("%.1f", stats.TotalHours),
@@ -273,6 +283,7 @@ func (d *DB) GetDashboardData(ctx context.Context) (DashboardData, error) {
 		Streak:         stats.CurrentStreak,
 		SuccessRate:    fmt.Sprintf("%.0f%%", stats.SuccessRatePct),
 		WeeklyOverview: stats.WeeklyOverview,
+		Heatmap:        heatmap,
 		ServerTime:     time.Now().Format("15:04:05 MST"),
 	}
 
@@ -463,4 +474,132 @@ func calculateWeeklyOverview(records []FastRecord, now time.Time) []DayBar {
 	}
 
 	return bars
+}
+
+// calculateHeatmap generates a 90-day GitHub-style activity calendar grouped into weeks.
+func calculateHeatmap(records []FastRecord, now time.Time) HeatmapData {
+	const totalDays = 90
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	startDate := today.AddDate(0, 0, -(totalDays - 1))
+	todayKey := today.Format("2006-01-02")
+
+	dayHours := make(map[string]float64)
+	dayTargets := make(map[string]float64)
+	dayFastCount := make(map[string]int)
+
+	for _, r := range records {
+		t := time.Unix(r.Start, 0).In(now.Location())
+		key := t.Format("2006-01-02")
+		dur := r.GetDuration()
+		if dur == 0 && (strings.EqualFold(r.State, "FASTING") || strings.EqualFold(r.State, "ACTIVE") || r.End == 0) {
+			dur = time.Since(t).Hours()
+		}
+		dayHours[key] += dur
+		dayFastCount[key]++
+		if r.GetTarget() > 0 {
+			dayTargets[key] = float64(r.GetTarget())
+		}
+	}
+
+	weekdayOffset := (int(startDate.Weekday()) + 6) % 7 // Mon=0, ..., Sun=6
+	firstMonday := startDate.AddDate(0, 0, -weekdayOffset)
+
+	var weeks []HeatmapWeek
+	var totalHours float64
+	var totalFasts int
+	var activeDays int
+	var goalMetDays int
+
+	lastMonth := ""
+	currentMonday := firstMonday
+
+	for currentMonday.Before(today.AddDate(0, 0, 1)) {
+		var week HeatmapWeek
+		var weekMonth string
+
+		for dayIdx := range 7 {
+			d := currentMonday.AddDate(0, 0, dayIdx)
+			dKey := d.Format("2006-01-02")
+
+			if d.Before(startDate) || d.After(today) {
+				week.Days[dayIdx] = HeatmapDay{
+					IsEmpty: true,
+					Level:   0,
+				}
+				continue
+			}
+
+			mName := d.Format("Jan")
+			if mName != lastMonth && weekMonth == "" {
+				weekMonth = mName
+				lastMonth = mName
+			}
+
+			hours := dayHours[dKey]
+			target := cmp.Or(dayTargets[dKey], 16.0)
+			achieved := hours >= target && hours > 0
+
+			totalHours += hours
+			totalFasts += dayFastCount[dKey]
+			if hours > 0 {
+				activeDays++
+			}
+			if achieved {
+				goalMetDays++
+			}
+
+			level := 0
+			switch {
+			case hours <= 0:
+				level = 0
+			case hours < 12.0:
+				level = 1
+			case hours < 16.0:
+				level = 2
+			case hours < 20.0:
+				level = 3
+			default:
+				level = 4
+			}
+
+			var tooltip string
+			if hours <= 0 {
+				tooltip = fmt.Sprintf("%s: No fast recorded", d.Format("Mon, Jan 02"))
+			} else if achieved {
+				tooltip = fmt.Sprintf("%s: %.1fh fasting (Goal Met! ⭐)", d.Format("Mon, Jan 02"), hours)
+			} else {
+				tooltip = fmt.Sprintf("%s: %.1fh fasting (Target: %.0fh)", d.Format("Mon, Jan 02"), hours, target)
+			}
+
+			week.Days[dayIdx] = HeatmapDay{
+				DateKey:     dKey,
+				DisplayDate: d.Format("Mon, Jan 02"),
+				DayName:     d.Format("Mon"),
+				Hours:       hours,
+				Target:      target,
+				Level:       level,
+				Achieved:    achieved,
+				Tooltip:     tooltip,
+				IsToday:     (dKey == todayKey),
+				IsEmpty:     false,
+			}
+		}
+
+		week.MonthLabel = weekMonth
+		weeks = append(weeks, week)
+		currentMonday = currentMonday.AddDate(0, 0, 7)
+	}
+
+	successRateStr := "0%"
+	if activeDays > 0 {
+		successRateStr = fmt.Sprintf("%.0f%%", (float64(goalMetDays)/float64(activeDays))*100.0)
+	}
+
+	return HeatmapData{
+		Weeks:         weeks,
+		Total90dHours: fmt.Sprintf("%.1f", totalHours),
+		Total90dFasts: totalFasts,
+		ActiveDays:    activeDays,
+		SuccessRate:   successRateStr,
+	}
 }

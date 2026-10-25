@@ -101,14 +101,15 @@ type DayBar struct {
 
 // StatsResponse provides summary metrics for fasting history.
 type StatsResponse struct {
-	Status         string   `json:"status"`
-	TotalFasts     int      `json:"total_fasts"`
-	TotalHours     float64  `json:"total_hours"`
-	AverageHours   float64  `json:"average_hours"`
-	LongestHours   float64  `json:"longest_hours"`
-	CurrentStreak  int      `json:"current_streak"`
-	SuccessRatePct float64  `json:"success_rate_pct"`
-	WeeklyOverview []DayBar `json:"weekly_overview,omitzero"`
+	Status         string       `json:"status"`
+	TotalFasts     int          `json:"total_fasts"`
+	TotalHours     float64      `json:"total_hours"`
+	AverageHours   float64      `json:"average_hours"`
+	LongestHours   float64      `json:"longest_hours"`
+	CurrentStreak  int          `json:"current_streak"`
+	SuccessRatePct float64      `json:"success_rate_pct"`
+	WeeklyOverview []DayBar     `json:"weekly_overview,omitzero"`
+	Heatmap        *HeatmapData `json:"heatmap,omitzero"`
 }
 
 // HealthResponse reports service health and uptime.
@@ -122,6 +123,35 @@ type HealthResponse struct {
 type ErrorResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
+}
+
+// HeatmapDay represents an individual day cell in the 90-day activity heatmap.
+type HeatmapDay struct {
+	DateKey     string  `json:"date_key"`     // "2026-10-25"
+	DisplayDate string  `json:"display_date"` // "Sun, Oct 25"
+	DayName     string  `json:"day_name"`     // "Sun"
+	Hours       float64 `json:"hours"`
+	Target      float64 `json:"target"`
+	Level       int     `json:"level"`        // 0 to 4
+	Achieved    bool    `json:"achieved"`
+	Tooltip     string  `json:"tooltip"`
+	IsToday     bool    `json:"is_today"`
+	IsEmpty     bool    `json:"is_empty"`     // padding days before start or after today
+}
+
+// HeatmapWeek represents one vertical 7-day column in the calendar heatmap.
+type HeatmapWeek struct {
+	MonthLabel string        `json:"month_label"` // "Aug", "Sep", etc. (displayed above column)
+	Days       [7]HeatmapDay `json:"days"`        // Index 0=Mon, 1=Tue, ..., 6=Sun
+}
+
+// HeatmapData groups all weeks and summary stats for the 90-day calendar.
+type HeatmapData struct {
+	Weeks         []HeatmapWeek `json:"weeks"`
+	Total90dHours string        `json:"total_90d_hours"`
+	Total90dFasts int           `json:"total_90d_fasts"`
+	ActiveDays    int           `json:"active_days"`
+	SuccessRate   string        `json:"success_rate"`
 }
 
 // FastRecordView formats a FastRecord for presentation on the HTML dashboard.
@@ -151,6 +181,7 @@ type DashboardData struct {
 	Streak         int
 	SuccessRate    string
 	WeeklyOverview []DayBar
+	Heatmap        HeatmapData
 	RecentFasts    []FastRecordView
 	ActiveFast     *FastRecordView
 	ServerTime     string

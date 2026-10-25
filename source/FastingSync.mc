@@ -43,7 +43,7 @@ class FastingSync {
             return;
         }
 
-        var url = "https://fasting.home.lobunets.me/api";
+        var url = "https://fasting.lobunets.home.network/api";
         var token = "";
 
         try {

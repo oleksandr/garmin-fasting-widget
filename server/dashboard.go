@@ -447,6 +447,201 @@ const dashboardHTML = `<!DOCTYPE html>
         footer a:hover {
             text-decoration: underline;
         }
+
+        /* 90-Day Fasting Activity Heatmap */
+        .panel-meta-badges {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .meta-chip {
+            background: #191920;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .meta-chip strong {
+            color: var(--text-main);
+        }
+
+        .meta-chip.emerald {
+            border-color: rgba(48, 209, 88, 0.25);
+            background: rgba(48, 209, 88, 0.08);
+            color: var(--emerald);
+        }
+
+        .meta-chip.emerald strong {
+            color: var(--emerald);
+        }
+
+        .heatmap-wrap {
+            overflow-x: auto;
+            padding: 10px 0 4px;
+        }
+
+        .heatmap-calendar {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: fit-content;
+        }
+
+        .heatmap-month-row {
+            display: flex;
+            margin-left: 34px;
+            gap: 4px;
+        }
+
+        .heatmap-month-cell {
+            width: 18px;
+            flex-shrink: 0;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: visible;
+        }
+
+        .heatmap-body {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .heatmap-weekdays {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-top: 1px;
+        }
+
+        .heatmap-weekday-label {
+            height: 18px;
+            line-height: 18px;
+            font-size: 10px;
+            color: var(--text-sub);
+            font-weight: 500;
+            text-align: right;
+            width: 26px;
+        }
+
+        .heatmap-grid {
+            display: flex;
+            gap: 4px;
+        }
+
+        .heatmap-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 18px;
+        }
+
+        .heat-cell {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.12s ease, filter 0.12s ease;
+            position: relative;
+        }
+
+        .heat-cell:hover {
+            transform: scale(1.3);
+            z-index: 10;
+            filter: brightness(1.25);
+        }
+
+        .level-0 {
+            background: #17171d;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .level-1 {
+            background: rgba(0, 210, 255, 0.25);
+            border: 1px solid rgba(0, 210, 255, 0.35);
+        }
+
+        .level-2 {
+            background: rgba(0, 210, 255, 0.55);
+            border: 1px solid rgba(0, 210, 255, 0.7);
+        }
+
+        .level-3 {
+            background: #00d2ff;
+            border: 1px solid #00d2ff;
+            box-shadow: 0 0 6px rgba(0, 210, 255, 0.45);
+        }
+
+        .level-4 {
+            background: #30d158;
+            border: 1px solid #30d158;
+            box-shadow: 0 0 8px rgba(48, 209, 88, 0.55);
+        }
+
+        .heat-cell.is-today {
+            outline: 2px solid var(--amber);
+            outline-offset: 1px;
+        }
+
+        .heat-cell.empty-day {
+            background: transparent;
+            border: 1px dashed rgba(255, 255, 255, 0.02);
+            pointer-events: none;
+            opacity: 0.15;
+        }
+
+        .heatmap-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 11px;
+            color: var(--text-sub);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-cells {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .legend-cell {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        .legend-scale-desc {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
     </style>
     <script>
         // Auto refresh dashboard every 60 seconds
@@ -520,6 +715,83 @@ const dashboardHTML = `<!DOCTYPE html>
                 <div class="stat-label">Success Rate <span>🎯</span></div>
                 <div class="stat-value emerald">{{.SuccessRate}}</div>
                 <div class="stat-desc">Achieved target goal</div>
+            </div>
+        </div>
+
+        <!-- 90-Day Fasting Activity Heatmap -->
+        <div class="panel" style="margin-bottom: 28px;">
+            <div class="panel-header">
+                <div>
+                    <div class="panel-title">90-Day Fasting Activity</div>
+                    <div style="font-size: 12px; color: var(--text-sub); margin-top: 3px;">
+                        Daily fasting consistency &amp; goal achievement
+                    </div>
+                </div>
+                <div class="panel-meta-badges">
+                    <span class="meta-chip"><strong>{{.Heatmap.ActiveDays}}</strong> Active Days</span>
+                    <span class="meta-chip"><strong>{{.Heatmap.Total90dHours}}h</strong> Fasted</span>
+                    <span class="meta-chip emerald"><strong>{{.Heatmap.SuccessRate}}</strong> Goal Met</span>
+                </div>
+            </div>
+
+            <div class="heatmap-wrap">
+                <div class="heatmap-calendar">
+                    <!-- Month headers above week columns -->
+                    <div class="heatmap-month-row">
+                        {{range .Heatmap.Weeks}}
+                        <div class="heatmap-month-cell">{{.MonthLabel}}</div>
+                        {{end}}
+                    </div>
+
+                    <!-- Weekdays + Day Columns Grid -->
+                    <div class="heatmap-body">
+                        <div class="heatmap-weekdays">
+                            <div class="heatmap-weekday-label">Mon</div>
+                            <div class="heatmap-weekday-label"></div>
+                            <div class="heatmap-weekday-label">Wed</div>
+                            <div class="heatmap-weekday-label"></div>
+                            <div class="heatmap-weekday-label">Fri</div>
+                            <div class="heatmap-weekday-label"></div>
+                            <div class="heatmap-weekday-label">Sun</div>
+                        </div>
+
+                        <div class="heatmap-grid">
+                            {{range .Heatmap.Weeks}}
+                            <div class="heatmap-col">
+                                {{range .Days}}
+                                {{if .IsEmpty}}
+                                <div class="heat-cell empty-day"></div>
+                                {{else}}
+                                <div class="heat-cell level-{{.Level}} {{if .IsToday}}is-today{{end}}" title="{{.Tooltip}}"></div>
+                                {{end}}
+                                {{end}}
+                            </div>
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Heatmap Legend & Guide -->
+            <div class="heatmap-footer">
+                <div class="legend-scale-desc">
+                    <div class="legend-item"><span class="legend-cell level-0"></span> None</div>
+                    <div class="legend-item"><span class="legend-cell level-1"></span> &lt;12h</div>
+                    <div class="legend-item"><span class="legend-cell level-2"></span> 12-16h</div>
+                    <div class="legend-item"><span class="legend-cell level-3"></span> 16-20h (Goal Met)</div>
+                    <div class="legend-item"><span class="legend-cell level-4"></span> 20h+ (Extended)</div>
+                </div>
+                <div class="heatmap-legend">
+                    <span>Less</span>
+                    <div class="legend-cells">
+                        <span class="legend-cell level-0"></span>
+                        <span class="legend-cell level-1"></span>
+                        <span class="legend-cell level-2"></span>
+                        <span class="legend-cell level-3"></span>
+                        <span class="legend-cell level-4"></span>
+                    </div>
+                    <span>More</span>
+                </div>
             </div>
         </div>
 
