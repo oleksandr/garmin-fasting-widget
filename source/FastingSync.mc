@@ -39,16 +39,28 @@ class FastingSync {
         }
 
         var url = "https://fasting.home.lobunets.me/api";
-        var token = "your_secret_token_here";
+        var token = "";
 
         try {
             var urlProp = Properties.getValue("apiUrl");
-            if (urlProp != null && urlProp instanceof String && (urlProp as String).length() > 0) {
-                url = urlProp as String;
+            if (urlProp != null && urlProp instanceof String) {
+                var u = urlProp as String;
+                // If it contains the obsolete lan.home dummy host, reset and ignore it
+                if (u.find("fasting.lan.home") != -1 || u.length() == 0) {
+                    Properties.setValue("apiUrl", url);
+                } else {
+                    url = u;
+                }
+            } else {
+                Properties.setValue("apiUrl", url);
             }
+
             var tokenProp = Properties.getValue("apiToken");
             if (tokenProp != null && tokenProp instanceof String) {
-                token = tokenProp as String;
+                var t = tokenProp as String;
+                if (t != "your_secret_token_here") {
+                    token = t;
+                }
             }
         } catch (e) {
             System.println("Property load error: " + e.getErrorMessage());
@@ -69,12 +81,16 @@ class FastingSync {
             "fasts" => unsynced
         };
 
+        var headers = {
+            "Content-Type" => Communications.REQUEST_CONTENT_TYPE_JSON
+        };
+        if (token.length() > 0) {
+            headers.put("Authorization", "Bearer " + token);
+        }
+
         var options = {
             :method => Communications.HTTP_REQUEST_METHOD_POST,
-            :headers => {
-                "Content-Type" => Communications.REQUEST_CONTENT_TYPE_JSON,
-                "Authorization" => "Bearer " + token
-            },
+            :headers => headers,
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
         };
 
@@ -86,11 +102,13 @@ class FastingSync {
             if (_pendingIds.size() > 0) {
                 FastingStorage.markFastsSynced(_pendingIds);
             }
-            _callback.invoke(true, "Synced " + _pendingIds.size() + " items");
+            _callback.invoke(true, "Synced OK");
         } else {
             var err = "Err " + responseCode;
-            if (responseCode == -400) {
-                err = "Invalid URL / Cert";
+            if (responseCode == -300) {
+                err = "Err -300 (Timeout)";
+            } else if (responseCode == -400) {
+                err = "Invalid URL";
             } else if (responseCode == -1001) {
                 err = "SSL / Net Error";
             } else if (responseCode == -2) {
