@@ -15,6 +15,11 @@ class FastingSync {
     }
 
     function startSync() as Void {
+        if (!System.getDeviceSettings().phoneConnected) {
+            _callback.invoke(false, "Phone Disconnected");
+            return;
+        }
+
         var unsynced = FastingStorage.getUnsyncedFasts();
 
         // If currently in an active fast, include the active session in the sync payload
@@ -105,7 +110,9 @@ class FastingSync {
             _callback.invoke(true, "Synced OK");
         } else {
             var err = "Err " + responseCode;
-            if (responseCode == -300) {
+            if (responseCode == -104 || responseCode == -2) {
+                err = "Phone BLE Offline";
+            } else if (responseCode == -300) {
                 err = "Err -300 (Timeout)";
             } else if (responseCode == -400) {
                 err = "Invalid URL";
