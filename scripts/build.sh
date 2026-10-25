@@ -50,6 +50,25 @@ fi
 mkdir -p bin
 echo "Compiling $OUTPUT for $DEVICE..."
 
+# Load local build environment if present
+if [ -f "$SCRIPT_DIR/build.local.env" ]; then
+    # shellcheck disable=SC1090
+    source "$SCRIPT_DIR/build.local.env"
+fi
+
+GENERIC_URL="https://fasting.lobunets.home.network/api"
+REAL_URL="${FASTING_API_URL:-https://fasting.home.lobunets.me/api}"
+
+cleanup() {
+    git checkout -- source/FastingSync.mc resources/settings/properties.xml 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+if [ "$REAL_URL" != "$GENERIC_URL" ]; then
+    echo "Injecting target endpoint: $REAL_URL"
+    sed -i "s|$GENERIC_URL|$REAL_URL|g" source/FastingSync.mc resources/settings/properties.xml
+fi
+
 "$MONKEYC" \
     -o "$OUTPUT" \
     -f monkey.jungle \

@@ -27,3 +27,8 @@ Thumbs.db
 
 # Garmin SDK caches
 .Garmin/
+
+# Local build configurations
+*.local.env
+.env.local
+

@@ -13,7 +13,7 @@ An intermittent fasting tracker widget built in Monkey C for the **Garmin Instin
 - **Physical Button Controls**: 100% button-driven navigation designed for the Instinct hardware (no touch needed).
 - **On-Wrist Time Adjustments**: Quick-shift windows by ±15 minutes using `UP` / `DOWN`, or fine-tune via the menu.
 - **Offline Storage**: Keeps a rolling on-device history of the last 30 completed fasts.
-- **Homelab Sync**: Automatically syncs fasts over HTTPS to your self-hosted API endpoint (or custom LAN host).
+- **Homelab Sync**: Automatically syncs fasts over HTTPS to `https://fasting.lobunets.home.network/api` (or custom LAN host).
 - **Web Dashboard**: Self-hosted AMOLED dark dashboard (`/`) displaying streaks, weekly overview, and session history.
 - **Flexible Ingestion**: Ingests fasting data from Garmin watches or smartphone apps/shortcuts via `POST /api`.
 
@@ -105,7 +105,7 @@ docker run -d \
 ### Homelab Deployment (Caddy Reverse Proxy)
 Exposed via Caddy reverse proxy:
 ```caddy
-fasting.home.example.com {
+fasting.lobunets.home.network {
     import tls_letsencrypt
     reverse_proxy 127.0.0.1:18090
 }
@@ -130,7 +130,7 @@ To configure or verify the sync endpoint for the watch widget:
 2. Go to **My Device** (bottom navigation) &rarr; **My Device Apps** (or **Glances**).
 3. Tap **Fasting** &rarr; **Settings**.
 4. Configure the settings:
-   - **Local API Endpoint**: `https://fasting.home.example.com/api`
+   - **Local API Endpoint**: `https://fasting.lobunets.home.network/api`
    - **API Bearer Token**: Enter your secret token (or leave blank if authentication is disabled).
    - **Target Fasting Hours**: e.g., `16`
    - **Target Eating Window Hours**: e.g., `8`
@@ -142,7 +142,7 @@ To configure or verify the sync endpoint for the watch widget:
 To log fasting sessions directly from your iPhone without the watch:
 1. Open the **Shortcuts** app on iOS and tap **+** (New Shortcut).
 2. Add the **Get Contents of URL** action:
-   - **URL**: `https://fasting.home.example.com/api`
+   - **URL**: `https://fasting.lobunets.home.network/api`
    - **Method**: `POST`
    - **Headers**:
      - `Content-Type`: `application/json`

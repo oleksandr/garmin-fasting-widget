@@ -145,7 +145,7 @@ When using the widget on your Garmin Instinct 3 AMOLED:
 2. Select **My Device** &rarr; **My Device Apps** &rarr; **Fasting**.
 3. Tap **Settings**.
 4. Configure:
-   * **Local API Endpoint**: `https://fasting.home.example.com/api`
+   * **Local API Endpoint**: `https://fasting.lobunets.home.network/api`
    * **API Bearer Token**: Your configured token (or leave blank for open access).
 5. Tap **Save** to push configuration to the watch via BLE.
 *(Note: Pre-compiled PRG builds can default to your custom domain in `resources/settings/properties.xml`)*.
@@ -154,7 +154,7 @@ When using the widget on your Garmin Instinct 3 AMOLED:
 To log fasting sessions directly from iOS:
 1. Create a new Shortcut in the **Shortcuts** app.
 2. Add **Get Contents of URL**:
-   * URL: `https://fasting.home.example.com/api`
+   * URL: `https://fasting.lobunets.home.network/api`
    * Method: `POST`
    * Headers: `Content-Type: application/json` (plus `Authorization: Bearer <token>` if token enabled)
    * Request Body: `JSON` with `start`, `end`, `duration_hours`, `target_hours`, `state`, and `device`.
